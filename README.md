@@ -39,9 +39,10 @@ Instagram and YouTube on a schedule you control.
   styles, silence and filler-word removal, manual transcript trimming (or
   "cut the intro" in plain language), hook text, logo and attribution banner —
   applied when you download or publish, previewed first.
-- **Publishes and schedules** through [Zernio](https://zernio.com), picking
-  prime-time slots and spacing posts to respect platform limits. Self-hosted
-  Postiz and Mixpost publisher adapters are also supported.
+- **Publishes and schedules** through a configurable provider. Zernio is a
+  hosted service; self-hosted Postiz and Mixpost adapters are also supported.
+  Provider subscriptions, API quotas and social-platform limits are never
+  bypassed by ClippyMe.
 - **Runs unattended.** The live monitor follows streams and uploads,
   clips each segment, and publishes the best clips on its own across Kick,
   Twitch and YouTube.
@@ -113,7 +114,7 @@ have:
 |-----|-----------|
 | Gemini | Choosing and ranking moments, titles (recommended) |
 | Deepgram or ElevenLabs | Fast cloud transcription (optional; local Whisper otherwise) |
-| Zernio, Postiz or Mixpost | Publishing and scheduling (optional) |
+| Zernio, self-hosted Postiz or Mixpost | Publishing and scheduling (optional; provider terms and limits apply) |
 | Twitch app credentials | Twitch VOD monitoring/backfill; not required for Twitch live capture |
 
 Then paste a video link in **Create**. The [getting started
@@ -125,6 +126,14 @@ If port 3000 is unavailable, set `CLIPPYME_FRONTEND_PORT` in `.env`; the
 container continues to listen on port 5175 internally. Use the **Logs** tab to
 confirm that monitors are detecting streams, Streamlink/FFmpeg are capturing,
 jobs are processing, and publishers are accepting posts.
+
+### Publishing cost note
+
+ClippyMe itself is free to run locally. Self-hosting a publisher can avoid a
+hosted SaaS subscription, but it still requires your own machine, network and
+the social platforms' approved APIs/accounts. Postiz is AGPL-3.0 open-source;
+Mixpost has a free Lite edition and paid Pro features. Neither option promises
+unlimited posting on TikTok, Instagram or YouTube.
 
 To stop the app:
 
