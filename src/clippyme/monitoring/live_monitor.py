@@ -166,14 +166,9 @@ def _definitely_not_created(exc: BaseException) -> bool:
     5xx are ambiguous — Zernio may have created the post. A 409 never is: the
     post exists (dedup) or is still being created (idempotency conflict)."""
     from clippyme.integrations.social_publisher import ZernioError
-    from clippyme.integrations.alternative_publishers import AlternativePublisherError
-
     if isinstance(exc, ZernioError):
         code = exc.status_code
         return code is not None and 400 <= code < 500 and code != 409
-    if isinstance(exc, AlternativePublisherError):
-        code = exc.status_code
-        return code is not None and 400 <= code < 500
     return isinstance(exc, ValueError)
 
 
@@ -939,12 +934,8 @@ class LiveMonitor:
         self._zernio_key = self._publisher_cfg.get("api_key")
         if self._publisher == "zernio" and not self._zernio_key:
             raise ValidationError("Zernio API key not configured")
-        if self._publisher == "postiz" and not (self._publisher_cfg.get("postiz") or {}).get("api_key"):
-            raise ValidationError("Postiz API key not configured")
-        if self._publisher == "mixpost" and not (self._publisher_cfg.get("mixpost") or {}).get("api_key"):
-            raise ValidationError("Mixpost access token not configured")
-        if self._publisher == "trypost" and not (self._publisher_cfg.get("trypost") or {}).get("api_key"):
-            raise ValidationError("TryPost API key not configured")
+        if self._publisher != "zernio":
+            raise ValidationError("Only Zernio publishing is supported")
 
         self.cfg = cfg
         self.platform = cfg["platform"]
@@ -1925,7 +1916,6 @@ class LiveMonitor:
         attempts against the same limit.
         """
         from clippyme.integrations.social_publisher import ZernioError, publish_clip
-        from clippyme.integrations.alternative_publishers import publish_alternative
 
         async with self._publish_lock:
             attempt = 0
@@ -1937,22 +1927,12 @@ class LiveMonitor:
                                    self.cfg.get("min_gap_seconds") or 0)
                 slots_before = len(self._picked_slots)
                 try:
-                    alternative_time = None
-                    if self._publisher != "zernio":
-                        alternative_time = (
-                            datetime.now(timezone.utc) +
-                            timedelta(seconds=max(0, int(self.cfg.get("min_gap_seconds") or 0)))
-                        ).isoformat()
                     common = dict(clip_path=upload_path, title=title[:100], caption=caption,
                                   platform_targets=self.cfg["platforms"], schedule_mode="auto",
-                                  timezone=self.cfg["timezone"], scheduled_for=alternative_time)
-                    if self._publisher == "zernio":
-                        return await asyncio.to_thread(
-                            publish_clip, api_key=self._zernio_key, scheduler=self._scheduler,
-                            start_date=start_date, request_id=entry["request_id"], **common)
+                                  timezone=self.cfg["timezone"], scheduled_for=None)
                     return await asyncio.to_thread(
-                        publish_alternative, provider=self._publisher,
-                        cfg=self._publisher_cfg, **common)
+                        publish_clip, api_key=self._zernio_key, scheduler=self._scheduler,
+                        start_date=start_date, request_id=entry["request_id"], **common)
                 except Exception as exc:
                     if not _definitely_not_created(exc):
                         raise
@@ -1963,7 +1943,7 @@ class LiveMonitor:
                     del self._picked_slots[slots_before:]
                     entry["request_id"] = str(uuid.uuid4())
                     self._persist()
-                    if self._publisher != "zernio" or not isinstance(exc, ZernioError) or exc.status_code != 429:
+                    if not isinstance(exc, ZernioError) or exc.status_code != 429:
                         raise
                     body = exc.body or ""
                     body_lower = body.lower()

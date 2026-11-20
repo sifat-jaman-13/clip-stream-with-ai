@@ -165,9 +165,6 @@ How these interact: [architecture/reframe.md](../architecture/reframe.md).
 | `ZERNIO_DEFAULT_TZ` | `Europe/Rome` | Timezone for automatic scheduling. | Audiences outside Italy. |
 | `ZERNIO_MIN_GAP_SECONDS` | `5400` | Minimum gap between posts when a manual publish uses `auto` scheduling (SmartScheduler). Live monitors use their own `min_gap_seconds`. | — |
 | `ZERNIO_HTTP_TIMEOUT` / `ZERNIO_UPLOAD_TIMEOUT` | `60` / `600` | Request and upload timeouts. | Slow uplinks. |
-| `CLIPPYME_PUBLISHER` | `zernio` | Default publisher selection is stored in Settings; supported values are `zernio`, `postiz`, and `mixpost`. | Choose a self-hosted publisher. |
-| `POSTIZ_BASE_URL` / `POSTIZ_API_KEY` | unset | Optional Postiz self-hosted API connection. The Settings screen stores these values in `data/config.json`. | Use Postiz for self-hosted multi-account scheduling. |
-| `MIXPOST_BASE_URL` / `MIXPOST_API_KEY` / `MIXPOST_WORKSPACE_ID` | unset | Optional Mixpost API connection. The Settings screen stores these values in `data/config.json`. | Use Mixpost for self-hosted multi-account scheduling. |
 | `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` | unset | Optional Twitch Helix app credentials for VOD monitoring and in-progress-VOD backfill. Twitch live capture uses Streamlink and does not require them. | Twitch VOD mode/backfill. |
 | `CLIPPYME_MIN_VIDEO_BITRATE_KBPS` | `8000` (floor) | Minimum bitrate for generated libx264 video and normalized Twitch live recordings. Values below 8000 are raised to 8000. | Raise for larger files when the source supports it. |
 

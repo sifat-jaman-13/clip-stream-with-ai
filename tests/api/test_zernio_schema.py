@@ -26,6 +26,11 @@ def test_zernio_accepts_empty():
     assert req.api_key is None
 
 
+def test_zernio_rejects_other_provider_names():
+    with pytest.raises(ValidationError):
+        ZernioConfigRequest(provider="postiz")
+
+
 def test_zernio_rejects_oversized_api_key():
     with pytest.raises(ValidationError):
         ZernioConfigRequest(api_key="x" * 513)

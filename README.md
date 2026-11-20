@@ -39,8 +39,7 @@ Instagram and YouTube on a schedule you control.
   styles, silence and filler-word removal, manual transcript trimming (or
   "cut the intro" in plain language), hook text, logo and attribution banner —
   applied when you download or publish, previewed first.
-- **Publishes and schedules** through a configurable provider. Zernio is a
-  hosted service; self-hosted Postiz and Mixpost adapters are also supported.
+- **Publishes and schedules** through Zernio.
   Provider subscriptions, API quotas and social-platform limits are never
   bypassed by ClippyMe.
 - **Runs unattended.** The live monitor follows streams and uploads,
@@ -114,7 +113,7 @@ have:
 |-----|-----------|
 | Gemini | Choosing and ranking moments, titles (recommended) |
 | Deepgram or ElevenLabs | Fast cloud transcription (optional; local Whisper otherwise) |
-| Zernio, self-hosted TryPost, Postiz or Mixpost | Publishing and scheduling (optional; provider terms and limits apply) |
+| Zernio | Publishing and scheduling (optional; provider terms and limits apply) |
 | Twitch app credentials | Twitch VOD monitoring/backfill; not required for Twitch live capture |
 
 Then paste a video link in **Create**. The [getting started
@@ -127,42 +126,6 @@ container continues to listen on port 5175 internally. Use the **Logs** tab to
 confirm that monitors are detecting streams, Streamlink/FFmpeg are capturing,
 jobs are processing, and publishers are accepting posts.
 
-### Publishing cost note
-
-ClippyMe itself is free to run locally. Self-hosting a publisher can avoid a
-hosted SaaS subscription, but it still requires your own machine, network and
-the social platforms' approved APIs/accounts. Postiz is AGPL-3.0 open-source;
-Mixpost has a free Lite edition and paid Pro features. Neither option promises
-unlimited posting on TikTok, Instagram or YouTube.
-
-#### Free self-hosted publishing
-
-To run the included subscription-free Postiz stack beside ClippyMe:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.free.yml up -d --build
-```
-
-Open <http://localhost:4007> once Postiz finishes starting, create an account,
-connect the social accounts using their official OAuth screens, and copy the
-Postiz API key into **ClippyMe → Settings**. Select **Postiz self-hosted** and
-use `http://postiz:5000/public/v1` as its internal base URL. The stack stores
-Postiz data in Docker volumes and can be stopped with the same two compose
-files plus `down`.
-
-This removes the scheduler subscription; it cannot remove platform quotas,
-account review, upload limits, or OAuth requirements.
-
-#### TryPost alternative
-
-TryPost is also supported as a ClippyMe publishing adapter. Start TryPost from
-its own repository using its Docker Compose setup, connect the channels there,
-create a workspace personal API key, then select **TryPost self-hosted** in
-ClippyMe Settings. Use the internal URL `http://trypost:8000` when both stacks
-share a Docker network, or the host URL such as `http://localhost:8000` when
-they run separately (`http://host.docker.internal:8000` from the ClippyMe
-backend container). Enter each TryPost channel UUID in the matching account ID
-field. The adapter uses TryPost's `/api/uploads` and `/api/posts` endpoints.
 
 To stop the app:
 

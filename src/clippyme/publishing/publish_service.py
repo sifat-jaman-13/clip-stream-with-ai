@@ -36,12 +36,8 @@ async def publish_clip_flow(*, job_id: str, clip_index: int,
     api_key = zernio_cfg.get("api_key")
     if provider == "zernio" and not api_key:
         raise ValidationError("Zernio API key not configured")
-    if provider == "postiz" and not (zernio_cfg.get("postiz") or {}).get("api_key"):
-        raise ValidationError("Postiz API key not configured")
-    if provider == "mixpost" and not (zernio_cfg.get("mixpost") or {}).get("api_key"):
-        raise ValidationError("Mixpost access token not configured")
-    if provider == "trypost" and not (zernio_cfg.get("trypost") or {}).get("api_key"):
-        raise ValidationError("TryPost API key not configured")
+    if provider != "zernio":
+        raise ValidationError("Only Zernio publishing is supported")
 
     toggles = req.get("toggles")
     logger.info(
@@ -175,7 +171,6 @@ async def _compose_and_upload(*, job_id, clip_index, resolved, req, api_key,
 
     # Run the publish in a worker thread (presign + PUT + create are blocking)
     from clippyme.integrations.social_publisher import publish_clip, ZernioError
-    from clippyme.integrations.alternative_publishers import AlternativePublisherError, publish_alternative
     try:
         publish_args = dict(
             clip_path=upload_path,
@@ -186,16 +181,12 @@ async def _compose_and_upload(*, job_id, clip_index, resolved, req, api_key,
             scheduled_for=req.get("scheduled_for"),
             timezone=req.get("timezone") or zernio_cfg.get("timezone") or "Europe/Rome",
         )
-        if provider == "zernio":
-            result = await asyncio.to_thread(
-                publish_clip, api_key=api_key, **publish_args,
-                tiktok_settings=req.get("tiktok_settings"),
-                start_date=req.get("start_date"),
-                request_id=manual_request_id(job_id, clip_index, intent_id) if intent_id else None,
-            )
-        else:
-            result = await asyncio.to_thread(
-                publish_alternative, provider=provider, cfg=zernio_cfg, **publish_args)
+        result = await asyncio.to_thread(
+            publish_clip, api_key=api_key, **publish_args,
+            tiktok_settings=req.get("tiktok_settings"),
+            start_date=req.get("start_date"),
+            request_id=manual_request_id(job_id, clip_index, intent_id) if intent_id else None,
+        )
     except ValueError as e:
         if intent_id:
             await asyncio.to_thread(reject_intent, job_dir, clip_index, intent_id)
@@ -219,13 +210,6 @@ async def _compose_and_upload(*, job_id, clip_index, resolved, req, api_key,
             detail_msg,
             status_code=502 if e.status_code is None else e.status_code,
         )
-    except AlternativePublisherError as e:
-        if intent_id and e.status_code in {400, 401, 403, 404, 422, 429}:
-            await asyncio.to_thread(reject_intent, job_dir, clip_index, intent_id)
-        detail = f"{provider.title()} API error: {e}"
-        if e.body:
-            detail += f" | body={e.body}"
-        raise ClippyMeError(detail, status_code=502 if e.status_code is None else e.status_code)
     except Exception:
         logger.exception("publish: unexpected error")
         raise ClippyMeError("Publish failed", status_code=500)
