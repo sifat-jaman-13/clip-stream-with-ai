@@ -40,6 +40,8 @@ async def publish_clip_flow(*, job_id: str, clip_index: int,
         raise ValidationError("Postiz API key not configured")
     if provider == "mixpost" and not (zernio_cfg.get("mixpost") or {}).get("api_key"):
         raise ValidationError("Mixpost access token not configured")
+    if provider == "trypost" and not (zernio_cfg.get("trypost") or {}).get("api_key"):
+        raise ValidationError("TryPost API key not configured")
 
     toggles = req.get("toggles")
     logger.info(

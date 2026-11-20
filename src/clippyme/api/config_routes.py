@@ -371,6 +371,7 @@ async def update_zernio_config(req: ZernioConfigRequest, request: Request):
         provider=req.provider,
         postiz=req.postiz,
         mixpost=req.mixpost,
+        trypost=req.trypost,
     )
     if not ok:
         raise HTTPException(status_code=500, detail="Failed to save Zernio config")

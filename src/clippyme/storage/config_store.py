@@ -100,6 +100,7 @@ def load_zernio_config() -> dict:
     accounts = zernio.get("accounts", {})
     postiz = zernio.get("postiz") if isinstance(zernio.get("postiz"), dict) else {}
     mixpost = zernio.get("mixpost") if isinstance(zernio.get("mixpost"), dict) else {}
+    trypost = zernio.get("trypost") if isinstance(zernio.get("trypost"), dict) else {}
     return {
         "api_key": zernio.get("api_key", "") or os.environ.get("ZERNIO_API_KEY", ""),
         "accounts": accounts if isinstance(accounts, dict) else {},
@@ -114,11 +115,16 @@ def load_zernio_config() -> dict:
             "api_key": mixpost.get("api_key") or os.environ.get("MIXPOST_API_KEY", ""),
             "workspace_id": mixpost.get("workspace_id") or os.environ.get("MIXPOST_WORKSPACE_ID", ""),
         },
+        "trypost": {
+            "base_url": trypost.get("base_url") or os.environ.get("TRYPOST_BASE_URL", "http://trypost:8000"),
+            "api_key": trypost.get("api_key") or os.environ.get("TRYPOST_API_KEY", ""),
+        },
     }
 
 
 def save_zernio_config(api_key: str = None, accounts: dict = None, timezone: str = None,
-                       provider: str = None, postiz: dict = None, mixpost: dict = None) -> bool:
+                       provider: str = None, postiz: dict = None, mixpost: dict = None,
+                       trypost: dict = None) -> bool:
     """Merge-update Zernio settings as one locked read-modify-write."""
     with _CONFIG_LOCK:
         raw = _read_raw_config()
@@ -143,10 +149,10 @@ def save_zernio_config(api_key: str = None, accounts: dict = None, timezone: str
         if timezone is not None:
             current["timezone"] = timezone
         if provider is not None:
-            if provider not in {"zernio", "postiz", "mixpost"}:
-                raise ValueError("provider must be zernio, postiz, or mixpost")
+            if provider not in {"zernio", "postiz", "mixpost", "trypost"}:
+                raise ValueError("provider must be zernio, postiz, mixpost, or trypost")
             current["provider"] = provider
-        for name, value in (("postiz", postiz), ("mixpost", mixpost)):
+        for name, value in (("postiz", postiz), ("mixpost", mixpost), ("trypost", trypost)):
             if value is not None:
                 if not isinstance(value, dict):
                     raise ValueError(f"{name} configuration must be an object")
@@ -165,6 +171,7 @@ def zernio_config_status() -> dict:
         "postiz": bool((cfg.get("postiz") or {}).get("api_key")),
         "mixpost": bool((cfg.get("mixpost") or {}).get("api_key") and
                          (cfg.get("mixpost") or {}).get("workspace_id")),
+        "trypost": bool((cfg.get("trypost") or {}).get("api_key")),
     }.get(provider, False)
     return {
         "configured": active_configured,
@@ -175,6 +182,7 @@ def zernio_config_status() -> dict:
         "postiz": {"configured": bool((cfg.get("postiz") or {}).get("api_key"))},
         "mixpost": {"configured": bool((cfg.get("mixpost") or {}).get("api_key")),
                     "workspace_configured": bool((cfg.get("mixpost") or {}).get("workspace_id"))},
+        "trypost": {"configured": bool((cfg.get("trypost") or {}).get("api_key"))},
     }
 
 

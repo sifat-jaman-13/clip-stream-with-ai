@@ -943,6 +943,8 @@ class LiveMonitor:
             raise ValidationError("Postiz API key not configured")
         if self._publisher == "mixpost" and not (self._publisher_cfg.get("mixpost") or {}).get("api_key"):
             raise ValidationError("Mixpost access token not configured")
+        if self._publisher == "trypost" and not (self._publisher_cfg.get("trypost") or {}).get("api_key"):
+            raise ValidationError("TryPost API key not configured")
 
         self.cfg = cfg
         self.platform = cfg["platform"]

@@ -448,9 +448,10 @@ class ZernioConfigRequest(BaseModel):
     api_key: Optional[str] = Field(None, max_length=512)
     accounts: Optional[dict] = None
     timezone: Optional[str] = Field(None, max_length=64)
-    provider: Optional[str] = Field(None, pattern=r"^(zernio|postiz|mixpost)$")
+    provider: Optional[str] = Field(None, pattern=r"^(zernio|postiz|mixpost|trypost)$")
     postiz: Optional[dict] = None
     mixpost: Optional[dict] = None
+    trypost: Optional[dict] = None
 
     @field_validator("timezone")
     @classmethod

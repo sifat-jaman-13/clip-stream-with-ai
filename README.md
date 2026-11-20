@@ -114,7 +114,7 @@ have:
 |-----|-----------|
 | Gemini | Choosing and ranking moments, titles (recommended) |
 | Deepgram or ElevenLabs | Fast cloud transcription (optional; local Whisper otherwise) |
-| Zernio, self-hosted Postiz or Mixpost | Publishing and scheduling (optional; provider terms and limits apply) |
+| Zernio, self-hosted TryPost, Postiz or Mixpost | Publishing and scheduling (optional; provider terms and limits apply) |
 | Twitch app credentials | Twitch VOD monitoring/backfill; not required for Twitch live capture |
 
 Then paste a video link in **Create**. The [getting started
@@ -152,6 +152,17 @@ files plus `down`.
 
 This removes the scheduler subscription; it cannot remove platform quotas,
 account review, upload limits, or OAuth requirements.
+
+#### TryPost alternative
+
+TryPost is also supported as a ClippyMe publishing adapter. Start TryPost from
+its own repository using its Docker Compose setup, connect the channels there,
+create a workspace personal API key, then select **TryPost self-hosted** in
+ClippyMe Settings. Use the internal URL `http://trypost:8000` when both stacks
+share a Docker network, or the host URL such as `http://localhost:8000` when
+they run separately (`http://host.docker.internal:8000` from the ClippyMe
+backend container). Enter each TryPost channel UUID in the matching account ID
+field. The adapter uses TryPost's `/api/uploads` and `/api/posts` endpoints.
 
 To stop the app:
 

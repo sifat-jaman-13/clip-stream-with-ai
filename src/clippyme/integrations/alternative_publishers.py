@@ -1,4 +1,4 @@
-"""Adapters for self-hosted Postiz and Mixpost publishing.
+"""Adapters for self-hosted TryPost, Postiz and Mixpost publishing.
 
 The adapters intentionally accept the same clip/title/caption/target shape as
 the Zernio publisher. They do not create social accounts: those accounts must
@@ -136,9 +136,62 @@ def publish_mixpost(*, cfg: dict, clip_path: str, title: str, caption: str,
             "provider": "mixpost"}
 
 
+def publish_trypost(*, cfg: dict, clip_path: str, title: str, caption: str,
+                    platform_targets: list[dict], schedule_mode: str,
+                    scheduled_for: str | None, timezone: str) -> dict:
+    """Upload and schedule a video through TryPost's self-hosted REST API.
+
+    TryPost binds API keys to a workspace. The account IDs entered in ClippyMe
+    therefore need to be the UUIDs shown by TryPost's Channels page.
+    """
+    base = _base_url(cfg.get("base_url"), "http://trypost:8000").rstrip("/")
+    token = str(cfg.get("api_key") or "").strip()
+    if not token:
+        raise ValueError("TryPost API key is not configured")
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
+    with open(clip_path, "rb") as media:
+        upload = _request("POST", f"{base}/api/uploads", headers=headers,
+                          files={"media": (Path(clip_path).name, media, "video/mp4")})
+    upload_data = upload.get("data") if isinstance(upload.get("data"), dict) else upload
+    upload_token = upload_data.get("upload_token")
+    if not upload_token:
+        raise AlternativePublisherError("TryPost upload response did not contain upload_token")
+
+    if not platform_targets:
+        raise ValueError("TryPost requires at least one channel/account ID")
+    content_types = {"instagram": "instagram_reel", "tiktok": "tiktok_video", "youtube": "youtube_short"}
+    post_ids = []
+    for target in platform_targets:
+        account_id = str(target.get("accountId") or "").strip()
+        platform = str(target.get("platform") or "").lower()
+        if not account_id:
+            raise ValueError(f"TryPost channel ID missing for {platform}")
+        payload: dict[str, Any] = {
+            "status": "publishing" if schedule_mode == "now" else "scheduled",
+            "content": caption or title,
+            "social_account_id": account_id,
+            "content_type": content_types.get(platform, f"{platform}_post"),
+            "media": [{"upload_token": upload_token}],
+        }
+        if schedule_mode != "now":
+            if not scheduled_for:
+                raise ValueError("TryPost scheduled posts require scheduled_for")
+            payload["scheduled_at"] = scheduled_for
+        result = _request("POST", f"{base}/api/posts", headers={**headers, "Content-Type": "application/json"}, json=payload)
+        data = result.get("data") if isinstance(result.get("data"), dict) else result
+        if data.get("id"):
+            post_ids.append(data["id"])
+    return {"post_id": post_ids[0] if len(post_ids) == 1 else post_ids,
+            "scheduled_for": scheduled_for,
+            "status": "published" if schedule_mode == "now" else "scheduled",
+            "provider": "trypost"}
+
+
 def publish_alternative(*, provider: str, cfg: dict, **kwargs) -> dict:
     if provider == "postiz":
         return publish_postiz(cfg=cfg.get("postiz") or {}, **kwargs)
     if provider == "mixpost":
         return publish_mixpost(cfg=cfg.get("mixpost") or {}, **kwargs)
+    if provider == "trypost":
+        return publish_trypost(cfg=cfg.get("trypost") or {}, **kwargs)
     raise ValueError(f"unsupported publisher: {provider}")

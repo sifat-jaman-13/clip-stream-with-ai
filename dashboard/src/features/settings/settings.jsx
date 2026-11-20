@@ -69,6 +69,8 @@ export function SettingsView({ apiKey, onApiKey, cookiesConfigured, onCookiesCha
   const [mixpostBase, setMixpostBase] = useState('http://mixpost/mixpost/api');
   const [mixpostKey, setMixpostKey] = useState('');
   const [mixpostWorkspace, setMixpostWorkspace] = useState('');
+  const [trypostBase, setTrypostBase] = useState('http://trypost:8000');
+  const [trypostKey, setTrypostKey] = useState('');
   const [zKey, setZKey] = useState('');
   const [accts, setAccts] = useState({ tiktok: '', instagram: '', youtube: '' });
   const [cookies, setCookies] = useState(!!cookiesConfigured);
@@ -135,10 +137,12 @@ export function SettingsView({ apiKey, onApiKey, cookiesConfigured, onCookiesCha
       const payload = { accounts: accts, provider: publishProvider,
         postiz: { base_url: postizBase, ...(postizKey.trim() ? { api_key: postizKey.trim() } : {}) },
         mixpost: { base_url: mixpostBase, workspace_id: mixpostWorkspace,
-          ...(mixpostKey.trim() ? { api_key: mixpostKey.trim() } : {}) } };
+          ...(mixpostKey.trim() ? { api_key: mixpostKey.trim() } : {}) },
+        trypost: { base_url: trypostBase,
+          ...(trypostKey.trim() ? { api_key: trypostKey.trim() } : {}) } };
       if (zKey.trim()) payload.api_key = zKey.trim();
       const z = await saveZernio(payload);
-      setZernioState(z); setZKey('');
+      setZernioState(z); setZKey(''); setTrypostKey('');
       pushToast?.('success', 'Publishing settings saved');
     } catch { pushToast?.('error', 'Zernio save failed'); }
   };
@@ -267,7 +271,7 @@ export function SettingsView({ apiKey, onApiKey, cookiesConfigured, onCookiesCha
         </div>
       </Panel>
 
-      <Panel title="Publishing" sub="Choose Zernio, Postiz, or Mixpost for finished clips" icon="send" style={{ marginBottom: 18 }}>
+      <Panel title="Publishing" sub="Choose Zernio, TryPost, Postiz, or Mixpost for finished clips" icon="send" style={{ marginBottom: 18 }}>
         <div className="zernio-card" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div className="zico"><Icon n="rss" /></div>
@@ -278,7 +282,7 @@ export function SettingsView({ apiKey, onApiKey, cookiesConfigured, onCookiesCha
             {zernio?.configured && <span className="conn"><Icon n="circle-check" />Connected</span>}
           </div>
           <select className="key-input" style={{ width: '100%', fontFamily: 'var(--font-sans)' }} value={publishProvider} onChange={(e) => setPublishProvider(e.target.value)} aria-label="Publishing provider">
-            <option value="zernio">Zernio</option><option value="postiz">Postiz self-hosted</option><option value="mixpost">Mixpost self-hosted</option>
+            <option value="zernio">Zernio</option><option value="trypost">TryPost self-hosted</option><option value="postiz">Postiz self-hosted</option><option value="mixpost">Mixpost self-hosted</option>
           </select>
           {publishProvider === 'zernio' && <input className="key-input" style={{ width: '100%' }} type="password" value={zKey}
             aria-label="Zernio API key"
@@ -286,6 +290,10 @@ export function SettingsView({ apiKey, onApiKey, cookiesConfigured, onCookiesCha
           {publishProvider === 'postiz' && <>
             <input className="key-input" style={{ width: '100%' }} value={postizBase} aria-label="Postiz base URL" placeholder="http://postiz:4007/public/v1" onChange={(e) => setPostizBase(e.target.value)} />
             <input className="key-input" style={{ width: '100%' }} type="password" value={postizKey} aria-label="Postiz API key" placeholder="Postiz API key" onChange={(e) => setPostizKey(e.target.value)} />
+          </>}
+          {publishProvider === 'trypost' && <>
+            <input className="key-input" style={{ width: '100%' }} value={trypostBase} aria-label="TryPost base URL" placeholder="http://trypost:8000" onChange={(e) => setTrypostBase(e.target.value)} />
+            <input className="key-input" style={{ width: '100%' }} type="password" value={trypostKey} aria-label="TryPost API key" placeholder="TryPost personal API key" onChange={(e) => setTrypostKey(e.target.value)} />
           </>}
           {publishProvider === 'mixpost' && <>
             <input className="key-input" style={{ width: '100%' }} value={mixpostBase} aria-label="Mixpost base URL" placeholder="http://mixpost/mixpost/api" onChange={(e) => setMixpostBase(e.target.value)} />
