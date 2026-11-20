@@ -1,24 +1,32 @@
 <div align="center">
-  <img src="dashboard/public/logo.svg" alt="ClippyMe logo" width="90" />
+  <img src="dashboard/public/logo.svg" alt="ClippyMe logo" width="112" />
 
-  <h1>ClippyMe</h1>
+  <h1>ClippyMe · AI Short-Form Studio</h1>
 
-  <p><b>Turn long videos into vertical shorts, on your own machine.</b></p>
+  <p><b>Turn long videos and live streams into publish-ready vertical clips.</b></p>
+  <p>Self-hosted · Docker-first · YouTube · Twitch · Kick</p>
 
   <p>
     <a href="https://github.com/sifat-jaman-13/clippyme/actions/workflows/ci.yml"><img src="https://github.com/sifat-jaman-13/clippyme/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
     <img src="https://img.shields.io/github/license/sifat-jaman-13/clippyme?color=3b82f6" alt="MIT license" />
     <img src="https://img.shields.io/badge/python-3.11-3776AB?logo=python&logoColor=white" alt="Python 3.11" />
+    <img src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white" alt="Docker ready" />
+  </p>
+
+  <p>
+    <a href="#quick-start">Quick start</a> ·
+    <a href="docs/getting-started.md">Getting started</a> ·
+    <a href="docs/architecture/overview.md">Architecture</a> ·
+    <a href="https://github.com/sifat-jaman-13/clippyme/issues">Issues</a>
   </p>
 </div>
 
-ClippyMe is a self-hosted web app for creators and editors. Give it a YouTube
-link or a video file; it finds the moments worth sharing, cuts them into 9:16
-clips with captions, and lets you polish and publish them to TikTok,
-Instagram and YouTube. It can also watch Kick, Twitch and YouTube channels and
-do all of that automatically.
+ClippyMe is a local-first web app for creators, editors and streamers. Give it
+a YouTube link or video file, or point Live Monitor at a channel. It finds the
+best moments, creates 9:16 clips with captions, and can publish them to TikTok,
+Instagram and YouTube on a schedule you control.
 
-## What it does
+## Highlights
 
 - **Finds the best moments.** The video is transcribed, and Google Gemini
   picks and ranks self-contained clips, with a title, hook and captions for
@@ -48,6 +56,18 @@ do all of that automatically.
   settings and keys stay in local folders. Long jobs survive restarts and
   resume where they stopped.
 
+## Live Monitor
+
+| Source | Live mode | VOD mode |
+|---|---|---|
+| YouTube | Detects the active broadcast and captures HLS segments | Watches new long-form uploads |
+| Twitch | Uses Streamlink; no OAuth app required | Twitch credentials enable VOD/backfill |
+| Kick | Captures the public playback stream | Processes available VODs |
+
+Each segment goes through the same clipping pipeline as a normal job. Twitch
+live recordings are normalized with an 8,000 kbps minimum video bitrate, and
+the Logs tab shows detection, capture, processing and publishing events.
+
 ## How it works
 
 ```mermaid
@@ -59,10 +79,10 @@ flowchart LR
     E --> F[Download or publish]
 ```
 
-Transcription uses Deepgram (the default) or ElevenLabs when you add its key
-and select it in Settings, and local Whisper otherwise. Without a Gemini key, ClippyMe still splits the video by
-topic, but clips are not ranked. The [architecture
-overview](docs/architecture/overview.md) explains the design.
+Transcription uses Deepgram by default, ElevenLabs when selected in Settings,
+or local Whisper as a fallback. Without a Gemini key, ClippyMe still splits a
+video by topic, but clips are not ranked. The [architecture overview](docs/architecture/overview.md)
+explains the design.
 
 For unattended workflows, the Live Monitor polls channels, captures fixed
 segments, sends them through the normal clipping pipeline, and queues finished
@@ -71,12 +91,19 @@ uses Streamlink; Kick uses its public playback stream.
 
 ## Quick start
 
-You need Docker with Compose v2. Then:
+You need Docker Desktop with Compose v2. Then:
 
 ```bash
 git clone https://github.com/sifat-jaman-13/clippyme.git
 cd clippyme
 docker compose up -d --build
+```
+
+For a first-time setup, copy the example environment file first:
+
+```bash
+copy .env.example .env       # Windows
+# cp .env.example .env       # macOS/Linux
 ```
 
 Open <http://localhost:3000>, go to **Settings**, and add the API keys you
@@ -98,6 +125,12 @@ If port 3000 is unavailable, set `CLIPPYME_FRONTEND_PORT` in `.env`; the
 container continues to listen on port 5175 internally. Use the **Logs** tab to
 confirm that monitors are detecting streams, Streamlink/FFmpeg are capturing,
 jobs are processing, and publishers are accepting posts.
+
+To stop the app:
+
+```bash
+docker compose down
+```
 
 An NVIDIA GPU is optional
 (`docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build`);
