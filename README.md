@@ -126,6 +126,11 @@ the checks CI runs, and the project's rules. The stack is Python 3.11 with
 FastAPI for the backend, a subprocess pipeline built on ffmpeg, OpenCV,
 MediaPipe and YOLOv8, and React 18 with Vite and Tailwind for the dashboard.
 
+## Credits
+
+Maintained by [Sifat Jaman](https://github.com/sifat-jaman-13), with
+implementation assistance from **Codex Luna 6**.
+
 ## Acknowledgements
 
 ClippyMe started as a fork of
