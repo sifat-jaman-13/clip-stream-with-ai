@@ -135,6 +135,24 @@ the social platforms' approved APIs/accounts. Postiz is AGPL-3.0 open-source;
 Mixpost has a free Lite edition and paid Pro features. Neither option promises
 unlimited posting on TikTok, Instagram or YouTube.
 
+#### Free self-hosted publishing
+
+To run the included subscription-free Postiz stack beside ClippyMe:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.free.yml up -d --build
+```
+
+Open <http://localhost:4007> once Postiz finishes starting, create an account,
+connect the social accounts using their official OAuth screens, and copy the
+Postiz API key into **ClippyMe → Settings**. Select **Postiz self-hosted** and
+use `http://postiz:5000/public/v1` as its internal base URL. The stack stores
+Postiz data in Docker volumes and can be stopped with the same two compose
+files plus `down`.
+
+This removes the scheduler subscription; it cannot remove platform quotas,
+account review, upload limits, or OAuth requirements.
+
 To stop the app:
 
 ```bash
