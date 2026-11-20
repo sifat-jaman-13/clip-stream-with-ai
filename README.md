@@ -6,8 +6,8 @@
   <p><b>Turn long videos into vertical shorts, on your own machine.</b></p>
 
   <p>
-    <a href="https://github.com/fralapo/clippyme/actions/workflows/ci.yml"><img src="https://github.com/fralapo/clippyme/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
-    <img src="https://img.shields.io/github/license/fralapo/clippyme?color=3b82f6" alt="MIT license" />
+    <a href="https://github.com/sifat-jaman-13/clippyme/actions/workflows/ci.yml"><img src="https://github.com/sifat-jaman-13/clippyme/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
+    <img src="https://img.shields.io/github/license/sifat-jaman-13/clippyme?color=3b82f6" alt="MIT license" />
     <img src="https://img.shields.io/badge/python-3.11-3776AB?logo=python&logoColor=white" alt="Python 3.11" />
   </p>
 </div>
@@ -32,9 +32,18 @@ do all of that automatically.
   "cut the intro" in plain language), hook text, logo and attribution banner —
   applied when you download or publish, previewed first.
 - **Publishes and schedules** through [Zernio](https://zernio.com), picking
-  prime-time slots and spacing posts to respect platform limits.
+  prime-time slots and spacing posts to respect platform limits. Self-hosted
+  Postiz and Mixpost publisher adapters are also supported.
 - **Runs unattended.** The live monitor follows streams and uploads,
-  clips each segment, and publishes the best clips on its own.
+  clips each segment, and publishes the best clips on its own across Kick,
+  Twitch and YouTube.
+- **Captures Twitch without OAuth for live mode.** Twitch live detection and
+  recording use Streamlink; Twitch client credentials are only needed for VOD
+  monitoring or backfill.
+- **Keeps recordings high quality.** Production H.264 output and normalized
+  Twitch recordings use an 8,000 kbps minimum video bitrate.
+- **Includes diagnostics.** The dashboard Logs tab shows recent detection,
+  capture, processing, publishing and error events with auto-refresh.
 - **Stays under your control.** Everything runs on your hardware; clips,
   settings and keys stay in local folders. Long jobs survive restarts and
   resume where they stopped.
@@ -55,29 +64,40 @@ and select it in Settings, and local Whisper otherwise. Without a Gemini key, Cl
 topic, but clips are not ranked. The [architecture
 overview](docs/architecture/overview.md) explains the design.
 
+For unattended workflows, the Live Monitor polls channels, captures fixed
+segments, sends them through the normal clipping pipeline, and queues finished
+clips for publishing. YouTube live uses the active HLS broadcast; Twitch live
+uses Streamlink; Kick uses its public playback stream.
+
 ## Quick start
 
 You need Docker with Compose v2. Then:
 
 ```bash
-git clone https://github.com/fralapo/clippyme.git
+git clone https://github.com/sifat-jaman-13/clippyme.git
 cd clippyme
-docker compose up --build
+docker compose up -d --build
 ```
 
-Open <http://localhost:5175>, go to **Settings**, and add the API keys you
+Open <http://localhost:3000>, go to **Settings**, and add the API keys you
 have:
 
 | Key | Needed for |
 |-----|-----------|
 | Gemini | Choosing and ranking moments, titles (recommended) |
 | Deepgram or ElevenLabs | Fast cloud transcription (optional; local Whisper otherwise) |
-| Zernio | Publishing and scheduling (optional) |
-| Twitch app credentials | Monitoring Twitch channels (optional) |
+| Zernio, Postiz or Mixpost | Publishing and scheduling (optional) |
+| Twitch app credentials | Twitch VOD monitoring/backfill; not required for Twitch live capture |
 
 Then paste a video link in **Create**. The [getting started
 guide](docs/getting-started.md) walks through the first job, updating, and
 where files are stored.
+
+The default Docker ports are `3000` for the dashboard and `8000` for the API.
+If port 3000 is unavailable, set `CLIPPYME_FRONTEND_PORT` in `.env`; the
+container continues to listen on port 5175 internally. Use the **Logs** tab to
+confirm that monitors are detecting streams, Streamlink/FFmpeg are capturing,
+jobs are processing, and publishers are accepting posts.
 
 An NVIDIA GPU is optional
 (`docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build`);
