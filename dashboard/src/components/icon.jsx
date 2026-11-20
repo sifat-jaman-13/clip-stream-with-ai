@@ -11,6 +11,7 @@ import {
   CalendarCheck, PartyPopper, Loader, Trash2, ChevronRight, Eye, EyeOff, KeyRound,
   Rss, Cookie, Info, Star, RefreshCw, Stamp, Image, Baseline, Copy, CheckCheck,
   Palette,
+  Terminal,
 } from 'lucide-react';
 
 const MAP = {
@@ -28,6 +29,7 @@ const MAP = {
   rss: Rss, cookie: Cookie, 'circle-check': CircleCheck, 'triangle-alert': TriangleAlert,
   info: Info, star: Star, 'refresh-cw': RefreshCw, stamp: Stamp, image: Image,
   baseline: Baseline, copy: Copy, 'check-check': CheckCheck, palette: Palette,
+  terminal: Terminal,
 };
 
 export function Icon({ n, cls, style }) {

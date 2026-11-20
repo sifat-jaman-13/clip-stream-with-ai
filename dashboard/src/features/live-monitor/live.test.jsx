@@ -1,5 +1,5 @@
 // LiveMonitorView — pins: per-platform channel validation gates Start, the
-// monitor list renders multiple concurrent monitors, and youtube forces VOD.
+// monitor list renders multiple concurrent monitors, and youtube supports live capture.
 import { test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { LiveMonitorView } from './live.jsx';
@@ -80,12 +80,12 @@ test('idle empty list shows "No monitors running."', async () => {
   expect(await screen.findByText('No monitors running.')).toBeInTheDocument();
 });
 
-test('selecting YouTube forces VOD mode and hides live-only fields', async () => {
+test('selecting YouTube keeps live mode and hides unsupported prelive controls', async () => {
   render(<LiveMonitorView />);
   fireEvent.click(screen.getByRole('button', { name: 'YouTube' }));
-  await waitFor(() => expect(screen.queryByLabelText('Segment minutes')).toBeNull());
+  expect(screen.getByLabelText('Segment minutes')).toBeInTheDocument();
   expect(screen.queryByLabelText('Prelive skip minutes')).toBeNull();
-  expect(screen.getByText(/YouTube: clips every new long-form upload/)).toBeInTheDocument();
+  expect(screen.getByText(/Live captures the active broadcast/)).toBeInTheDocument();
 });
 
 test('duplicate monitor (409) shows a warning toast', async () => {
@@ -287,7 +287,7 @@ test('publishing toggle calls setMonitorPublishing with the flipped value', asyn
   });
   render(<LiveMonitorView />);
   expect(await screen.findByText('Paused — 3 clip(s) waiting')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('switch', { name: 'Zernio auto-publish kick:xqc' }));
+  fireEvent.click(screen.getByRole('switch', { name: 'Auto-publish kick:xqc' }));
   await waitFor(() => expect(setMonitorPublishing).toHaveBeenCalledWith('kick:xqc', true));
 });
 

@@ -32,9 +32,14 @@ async def publish_clip_flow(*, job_id: str, clip_index: int,
     ``resolve_clip(..., require_file=False)`` — the base clip may be absent
     when a composed file exists on disk.
     """
+    provider = zernio_cfg.get("provider", "zernio")
     api_key = zernio_cfg.get("api_key")
-    if not api_key:
+    if provider == "zernio" and not api_key:
         raise ValidationError("Zernio API key not configured")
+    if provider == "postiz" and not (zernio_cfg.get("postiz") or {}).get("api_key"):
+        raise ValidationError("Postiz API key not configured")
+    if provider == "mixpost" and not (zernio_cfg.get("mixpost") or {}).get("api_key"):
+        raise ValidationError("Mixpost access token not configured")
 
     toggles = req.get("toggles")
     logger.info(
@@ -75,7 +80,7 @@ async def publish_clip_flow(*, job_id: str, clip_index: int,
                     logger.warning("Cannot repair metadata for accepted publication %s/%d", job_id, clip_index)
                 # A known remote post ID permits a precise provider GET. Never
                 # approximate by title or scheduled time (could match another).
-                if outcome.get("post_id"):
+                if outcome.get("post_id") and provider == "zernio":
                     from clippyme.integrations.social_publisher import ZernioClient, ZernioError
                     try:
                         fresh = await asyncio.to_thread(ZernioClient(api_key).get_post, outcome["post_id"])
@@ -87,7 +92,7 @@ async def publish_clip_flow(*, job_id: str, clip_index: int,
                 return {"success": True, "replayed": True, **outcome}
         return await _compose_and_upload(
             job_id=job_id, clip_index=clip_index, resolved=resolved, req=req,
-            api_key=api_key, zernio_cfg=zernio_cfg)
+            api_key=api_key, provider=provider, zernio_cfg=zernio_cfg)
 
 
 def _publication_record(req: dict, intent_id: str | None, result: dict) -> dict:
@@ -119,7 +124,7 @@ def _recorded_intent(job_id: str, clip_index: int, output_dir: str, intent_id: s
 
 
 async def _compose_and_upload(*, job_id, clip_index, resolved, req, api_key,
-                              zernio_cfg) -> dict:
+                              provider="zernio", zernio_cfg) -> dict:
     job_dir = resolved.job_dir
     base_clip = resolved.clip_path
     upload_path = base_clip
@@ -168,10 +173,9 @@ async def _compose_and_upload(*, job_id, clip_index, resolved, req, api_key,
 
     # Run the publish in a worker thread (presign + PUT + create are blocking)
     from clippyme.integrations.social_publisher import publish_clip, ZernioError
+    from clippyme.integrations.alternative_publishers import AlternativePublisherError, publish_alternative
     try:
-        result = await asyncio.to_thread(
-            publish_clip,
-            api_key=api_key,
+        publish_args = dict(
             clip_path=upload_path,
             title=req.get("title") or resolved.clip_info.get("title", "")[:100] or f"Clip {clip_index + 1}",
             caption=req.get("caption") or "",
@@ -179,10 +183,17 @@ async def _compose_and_upload(*, job_id, clip_index, resolved, req, api_key,
             schedule_mode=req.get("schedule_mode"),
             scheduled_for=req.get("scheduled_for"),
             timezone=req.get("timezone") or zernio_cfg.get("timezone") or "Europe/Rome",
-            tiktok_settings=req.get("tiktok_settings"),
-            start_date=req.get("start_date"),
-            request_id=manual_request_id(job_id, clip_index, intent_id) if intent_id else None,
         )
+        if provider == "zernio":
+            result = await asyncio.to_thread(
+                publish_clip, api_key=api_key, **publish_args,
+                tiktok_settings=req.get("tiktok_settings"),
+                start_date=req.get("start_date"),
+                request_id=manual_request_id(job_id, clip_index, intent_id) if intent_id else None,
+            )
+        else:
+            result = await asyncio.to_thread(
+                publish_alternative, provider=provider, cfg=zernio_cfg, **publish_args)
     except ValueError as e:
         if intent_id:
             await asyncio.to_thread(reject_intent, job_dir, clip_index, intent_id)
@@ -206,6 +217,13 @@ async def _compose_and_upload(*, job_id, clip_index, resolved, req, api_key,
             detail_msg,
             status_code=502 if e.status_code is None else e.status_code,
         )
+    except AlternativePublisherError as e:
+        if intent_id and e.status_code in {400, 401, 403, 404, 422, 429}:
+            await asyncio.to_thread(reject_intent, job_dir, clip_index, intent_id)
+        detail = f"{provider.title()} API error: {e}"
+        if e.body:
+            detail += f" | body={e.body}"
+        raise ClippyMeError(detail, status_code=502 if e.status_code is None else e.status_code)
     except Exception:
         logger.exception("publish: unexpected error")
         raise ClippyMeError("Publish failed", status_code=500)

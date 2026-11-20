@@ -1,8 +1,9 @@
 # Runtime-only tools invoked by the live monitor / banner renderer.
 # Kept separate from requirements.lock because they are CLI/system-integrated
 # extras rather than imports required by the core host test suite.
-# Streamlink 8.4.0 fixes CVE-2026-44353 (HLS/DASH file:// segment disclosure).
-streamlink==8.4.0
+# Streamlink 8.6.1 includes the urllib3 2.8.0 compatibility fix and the
+# security fixes from the 8.6.x line.
+streamlink==8.6.1
 # CairoSVG 2.9.1 fixes CVE-2026-107378 (quadratic SVG path DoS)
 # and retains the CVE-2026-31899 recursive <use> CPU exhaustion fix.
 CairoSVG==2.9.1

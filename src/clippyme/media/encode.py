@@ -24,6 +24,10 @@ _DEFAULT_CRF = 18
 # the same CRF, for a modest amount of extra encode time — worth it because
 # these encodes feed further encodes (generational robustness).
 _DEFAULT_PRESET = "medium"
+# Social-video outputs should not be encoded below this floor. The value is
+# intentionally a floor, not a quality promise: a low-bitrate source cannot
+# regain detail, but new renders will not be starved of bits.
+_DEFAULT_MIN_BITRATE_KBPS = 8000
 
 _VALID_PRESETS = {
     "ultrafast", "superfast", "veryfast", "faster", "fast",
@@ -75,6 +79,16 @@ def x264_preset() -> str:
     return raw if raw in _VALID_PRESETS else _DEFAULT_PRESET
 
 
+def min_video_bitrate_kbps() -> int:
+    """Return the minimum output video bitrate, never below 8000 kbps."""
+    raw = (os.getenv("CLIPPYME_MIN_VIDEO_BITRATE_KBPS") or "").strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        value = _DEFAULT_MIN_BITRATE_KBPS
+    return max(_DEFAULT_MIN_BITRATE_KBPS, value)
+
+
 def x264_video_args(crf=None, preset=None, pix_fmt="yuv420p", faststart=True):
     """Return the shared ``-c:v libx264 …`` argument list for one encode pass.
 
@@ -90,6 +104,10 @@ def x264_video_args(crf=None, preset=None, pix_fmt="yuv420p", faststart=True):
         "-c:v", "libx264",
         "-preset", preset or x264_preset(),
         "-crf", str(crf if crf is not None else x264_crf()),
+        "-b:v", f"{min_video_bitrate_kbps()}k",
+        "-minrate", f"{min_video_bitrate_kbps()}k",
+        "-maxrate", f"{min_video_bitrate_kbps()}k",
+        "-bufsize", f"{min_video_bitrate_kbps() * 2}k",
     ]
     if pix_fmt:
         args += ["-pix_fmt", pix_fmt]

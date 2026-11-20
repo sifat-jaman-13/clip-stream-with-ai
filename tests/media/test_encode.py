@@ -39,6 +39,10 @@ def test_video_args_shape(monkeypatch):
         "-c:v", "libx264",
         "-preset", "medium",
         "-crf", "18",
+        "-b:v", "8000k",
+        "-minrate", "8000k",
+        "-maxrate", "8000k",
+        "-bufsize", "16000k",
         "-pix_fmt", "yuv420p",
         "-movflags", "+faststart",
     ]
@@ -55,6 +59,14 @@ def test_video_args_overrides_and_toggles():
 
     # pix_fmt=None omits the pixel-format flag.
     assert "-pix_fmt" not in x264_video_args(pix_fmt=None)
+
+
+def test_minimum_bitrate_cannot_be_lowered(monkeypatch):
+    monkeypatch.setenv("CLIPPYME_MIN_VIDEO_BITRATE_KBPS", "1000")
+    args = x264_video_args()
+    assert args[args.index("-b:v") + 1] == "8000k"
+    monkeypatch.setenv("CLIPPYME_MIN_VIDEO_BITRATE_KBPS", "12000")
+    assert x264_video_args()[x264_video_args().index("-b:v") + 1] == "12000k"
 
 
 def test_video_args_is_a_fresh_list_each_call():

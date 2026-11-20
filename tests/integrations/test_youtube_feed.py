@@ -4,7 +4,9 @@ import pytest
 from clippyme.integrations import youtube_feed as yf
 from clippyme.integrations.youtube_feed import (
     feed_url,
+    live_page_url,
     parse_feed,
+    resolve_live_stream,
     uploads_playlist_id,
 )
 
@@ -32,6 +34,70 @@ def test_uploads_playlist_id_rejects_non_uc():
 
 def test_feed_url():
     assert "playlist_id=UULFabcdefghijklmnopqrstuv" in feed_url("UULFabcdefghijklmnopqrstuv")
+
+
+def test_live_page_url():
+    assert live_page_url("UCabcdefghijklmnopqrstuv") == (
+        "https://www.youtube.com/channel/UCabcdefghijklmnopqrstuv/live"
+    )
+
+
+def test_resolve_live_stream_returns_expiring_media_url(monkeypatch):
+    captured = {}
+
+    class FakeYDL:
+        def __init__(self, options):
+            captured["options"] = options
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def extract_info(self, url, **kwargs):
+            captured["url"] = url
+            captured["kwargs"] = kwargs
+            return {
+                "is_live": True,
+                "live_status": "is_live",
+                "formats": [{
+                    "url": "https://video.example/live.m3u8",
+                    "protocol": "m3u8_native",
+                    "height": 720,
+                }],
+                "live_start_time": 1_700_000_000,
+            }
+
+    import sys
+    from types import SimpleNamespace
+    monkeypatch.setitem(sys.modules, "yt_dlp", SimpleNamespace(YoutubeDL=FakeYDL))
+    live, url, started = resolve_live_stream("UCabcdefghijklmnopqrstuv")
+    assert live is True
+    assert url.endswith("live.m3u8")
+    assert started.tzinfo is not None
+    assert captured["url"].endswith("/live")
+    assert captured["options"]["skip_download"] is True
+
+
+def test_resolve_live_stream_reports_inactive_channel(monkeypatch):
+    class FakeYDL:
+        def __init__(self, options):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def extract_info(self, url, **kwargs):
+            return {"live_status": "not_live"}
+
+    import sys
+    from types import SimpleNamespace
+    monkeypatch.setitem(sys.modules, "yt_dlp", SimpleNamespace(YoutubeDL=FakeYDL))
+    assert resolve_live_stream("UCabcdefghijklmnopqrstuv") == (False, None, None)
 
 
 def test_parse_feed_order_and_urls():

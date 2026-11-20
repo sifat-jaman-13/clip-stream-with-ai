@@ -7,6 +7,7 @@ const TABS = [
   { id: 'create', label: 'Create', icon: 'wand-sparkles' },
   { id: 'live', label: 'Live Monitor', icon: 'rss' },
   { id: 'history', label: 'History', icon: 'clock' },
+  { id: 'logs', label: 'Logs', icon: 'terminal' },
   { id: 'settings', label: 'Settings', icon: 'settings' },
 ];
 

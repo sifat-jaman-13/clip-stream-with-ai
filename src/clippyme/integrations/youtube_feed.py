@@ -13,6 +13,7 @@ FEED_URL = "https://www.youtube.com/feeds/videos.xml?playlist_id={playlist}"
 USER_AGENT = "Mozilla/5.0 (compatible; ClippyMe-LiveMonitor/1.0)"
 MAX_FEED_BYTES = 2 * 1024 * 1024
 CHANNEL_RESOLVE_TIMEOUT = 15
+LIVE_PAGE_TIMEOUT = 20
 
 _UC_RE = re.compile(r"^UC[A-Za-z0-9_-]{22}$")
 _PLAYLIST_RE = re.compile(r"^UULF[A-Za-z0-9_-]{22}$")
@@ -142,3 +143,87 @@ def resolve_channel_id(channel_input: str) -> str:
     if not channel_id or not _UC_RE.fullmatch(str(channel_id)):
         raise ValueError(f"could not resolve YouTube channel id from {channel_input!r}")
     return str(channel_id)
+
+
+def live_page_url(channel_id: str) -> str:
+    """Return the canonical live tab URL for a resolved channel id."""
+    cid = (channel_id or "").strip()
+    if not _UC_RE.fullmatch(cid):
+        raise ValueError(f"expected a canonical UC channel id, got {channel_id!r}")
+    return f"https://www.youtube.com/channel/{cid}/live"
+
+
+def _live_start(info: dict):
+    """Read the best available UTC start time from yt-dlp metadata."""
+    from datetime import datetime, timezone
+
+    for key in ("live_start_time", "release_timestamp", "timestamp"):
+        value = info.get(key)
+        if value is None:
+            continue
+        try:
+            return datetime.fromtimestamp(float(value), tz=timezone.utc)
+        except (TypeError, ValueError, OverflowError, OSError):
+            continue
+    return None
+
+
+def _live_media_url(info: dict):
+    """Pick the highest available direct HLS/media URL from metadata."""
+    if info.get("url"):
+        return info["url"]
+    formats = [item for item in (info.get("formats") or []) if item.get("url")]
+    hls = [item for item in formats
+           if "m3u8" in str(item.get("protocol") or "").lower()]
+    candidates = hls or formats
+    if not candidates:
+        return None
+    best = max(candidates, key=lambda item: (
+        float(item.get("height") or 0),
+        float(item.get("tbr") or 0),
+    ))
+    return best.get("url")
+
+
+def resolve_live_stream(channel_id: str):
+    """Return ``(is_live, stream_url, started_at)`` for a YouTube channel.
+
+    The stream URL is deliberately resolved on every state check: YouTube HLS
+    URLs expire while a broadcast is running.  The live tab is used instead of
+    the uploads feed, so scheduled/upcoming broadcasts are not treated as live.
+    """
+    from yt_dlp import YoutubeDL
+
+    options = {
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+        "noplaylist": True,
+        "socket_timeout": LIVE_PAGE_TIMEOUT,
+        "retries": 1,
+        "extractor_retries": 1,
+        "cachedir": False,
+    }
+    with YoutubeDL(options) as ydl:
+        info = ydl.extract_info(live_page_url(channel_id), download=False) or {}
+
+    # A channel's /live tab can resolve as a playlist when there is no active
+    # broadcast.  Inspect flat entries as a fallback, then resolve the active
+    # video once more to obtain a fresh media URL.
+    if info.get("_type") == "playlist":
+        entries = [entry for entry in (info.get("entries") or []) if entry]
+        live_entry = next((entry for entry in entries
+                           if entry.get("is_live") or entry.get("live_status") == "is_live"), None)
+        if live_entry and live_entry.get("id"):
+            with YoutubeDL(options) as ydl:
+                info = ydl.extract_info(
+                    f"https://www.youtube.com/watch?v={live_entry['id']}",
+                    download=False,
+                ) or {}
+
+    if not info.get("is_live") and info.get("live_status") != "is_live":
+        return False, None, None
+    media_url = _live_media_url(info)
+    if not media_url:
+        raise RuntimeError("YouTube live broadcast has no playable media URL")
+    return True, media_url, _live_start(info)

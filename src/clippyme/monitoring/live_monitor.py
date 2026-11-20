@@ -3,7 +3,7 @@
 Watches one or more creator channels across **kick / twitch / youtube** in one of
 two modes:
 
-- ``live`` (kick + twitch): poll until the channel goes live, skip the prelive
+- ``live`` (kick + twitch + youtube): poll until the channel goes live, skip the prelive
   window, then repeatedly capture fixed-length segments of the stream, submit
   each as a normal ClippyMe pipeline job (local-file, no download) and
   auto-publish every produced clip.
@@ -35,6 +35,7 @@ import os
 import random
 import re
 import shutil
+import subprocess
 import sys
 import time
 import uuid
@@ -165,10 +166,14 @@ def _definitely_not_created(exc: BaseException) -> bool:
     5xx are ambiguous — Zernio may have created the post. A 409 never is: the
     post exists (dedup) or is still being created (idempotency conflict)."""
     from clippyme.integrations.social_publisher import ZernioError
+    from clippyme.integrations.alternative_publishers import AlternativePublisherError
 
     if isinstance(exc, ZernioError):
         code = exc.status_code
         return code is not None and 400 <= code < 500 and code != 409
+    if isinstance(exc, AlternativePublisherError):
+        code = exc.status_code
+        return code is not None and 400 <= code < 500
     return isinstance(exc, ValueError)
 
 
@@ -373,9 +378,6 @@ def validate_monitor_config(config: dict, default_timezone: str = "Europe/Rome")
     mode = str(config.get("mode") or "live").strip().lower()
     if mode not in ("live", "vod"):
         raise ValidationError("mode must be 'live' or 'vod'")
-    if platform == "youtube" and mode == "live":
-        raise ValidationError("live mode not supported for youtube (use mode='vod')")
-
     channel = _validate_channel(platform, config.get("channel") or config.get("slug"))
 
     platforms = config.get("platforms") or []
@@ -392,7 +394,7 @@ def validate_monitor_config(config: dict, default_timezone: str = "Europe/Rome")
             return default
         return max(lo, min(hi, n))
 
-    # vod feeds lag minutes→hours; live wants a fast go-live poll.
+    # VOD feeds lag minutes→hours; live wants a fast go-live poll.
     default_poll = 600 if mode == "vod" else 60
     return {
         "platform": platform,
@@ -401,7 +403,12 @@ def validate_monitor_config(config: dict, default_timezone: str = "Europe/Rome")
         "slug": channel,  # back-compat alias
         "platforms": platforms,
         "segment_seconds": _clamp_int(config.get("segment_seconds"), 1800, 60, 3600),
-        "prelive_skip_seconds": _clamp_int(config.get("prelive_skip_seconds"), 1800, 0, 7200),
+        # YouTube live capture starts as soon as the broadcast is detected;
+        # unlike Kick/Twitch, the monitor has no waiting-screen contract.
+        "prelive_skip_seconds": (
+            0 if platform == "youtube" and mode == "live"
+            else _clamp_int(config.get("prelive_skip_seconds"), 1800, 0, 7200)
+        ),
         "min_gap_seconds": _clamp_int(config.get("min_gap_seconds"), 900, 0, 86400),
         "poll_interval": _clamp_int(config.get("poll_interval"), default_poll, 30, 3600),
         "loop": bool(config.get("loop", False)),
@@ -412,11 +419,13 @@ def validate_monitor_config(config: dict, default_timezone: str = "Europe/Rome")
         "caption_template": str(config.get("caption_template") or "")[:2200],
         "title_template": str(config.get("title_template") or "")[:500],
         "timezone": str(config.get("timezone") or default_timezone or "Europe/Rome")[:64],
-        # "backfill" (default) recovers footage missed before capture started
-        # (prelive window, kick/twitch missed-window recovery). "live_only"
-        # never recovers pre-start footage — coverage begins at launch. This is
-        # a start-time choice, not runtime-updatable (see _UPDATABLE_CONFIG_FIELDS).
-        "catchup": _validate_catchup(config.get("catchup")),
+        # YouTube live HLS URLs do not provide a stable DVR/range-download
+        # contract, so YouTube live always starts at detection time. Kick and
+        # Twitch retain their configured backfill behavior.
+        "catchup": (
+            "live_only" if platform == "youtube" and mode == "live"
+            else _validate_catchup(config.get("catchup"))
+        ),
         # Banner + compose overrides for the auto-publish flow (None = defaults).
         # Kept as-is here; build_monitor_compose / monitor_banner_params own the
         # semantics. The API schema already bounds them.
@@ -600,12 +609,32 @@ class KickStrategy:
 
 
 class TwitchStrategy:
-    def __init__(self, channel: str, client):
+    def __init__(self, channel: str, client=None):
         self.channel = channel
         self._client = client
         self._user_id = None
 
     def get_live_state(self):
+        if self._client is None:
+            # Streamlink resolves the public Twitch playback session without
+            # requiring a Twitch developer app or client secret. Its JSON
+            # probe is also the same dependency used for the actual capture.
+            if not shutil.which("streamlink"):
+                raise RuntimeError("streamlink is not installed")
+            result = subprocess.run(
+                ["streamlink", "--json", f"https://www.twitch.tv/{self.channel}", "best"],
+                capture_output=True, text=True, timeout=30, check=False,
+            )
+            try:
+                payload = json.loads(result.stdout or "{}")
+            except json.JSONDecodeError:
+                payload = {}
+            # Streamlink's --json probe returns the selected stream as a
+            # top-level ``url``/``type`` pair (not the older ``streams`` map).
+            # A successful URL is the authoritative public-live signal and
+            # is also what the capture command will consume.
+            live = result.returncode == 0 and bool(payload.get("url"))
+            return live, None, None
         from clippyme.integrations.twitch_client import stream_is_live, stream_started_at
         streams = self._client.get_stream(self.channel)
         return stream_is_live(streams), None, stream_started_at(streams)
@@ -616,7 +645,22 @@ class TwitchStrategy:
         return ["streamlink", "--twitch-disable-ads", "--hls-duration", _hhmmss(seconds),
                 f"twitch.tv/{self.channel}", "best", "-o", seg_path]
 
+    def finalize_capture_args(self, seg_path: str, seconds: int):
+        """Transcode Streamlink's transport stream into a consistent MP4.
+
+        Streamlink performs the live acquisition; ffmpeg only normalizes the
+        saved segment so the same 8 Mbps floor used by generated clips also
+        applies to the monitor recording.
+        """
+        from clippyme.media.encode import x264_video_args
+        temp = f"{seg_path}.normalized.mp4"
+        return ["ffmpeg", "-hide_banner", "-loglevel", "warning", "-i", seg_path,
+                "-map", "0:v:0", "-map", "0:a?", *x264_video_args(),
+                "-c:a", "aac", "-b:a", "192k", "-t", str(seconds), "-y", temp], temp
+
     def fetch_vods(self):
+        if self._client is None:
+            raise ValidationError("Twitch VOD monitoring requires Twitch API credentials")
         from clippyme.integrations.twitch_client import parse_vods
         if self._user_id is None:
             self._user_id = self._client.get_user_id(self.channel)
@@ -627,6 +671,8 @@ class TwitchStrategy:
     def live_vod_url(self):
         """URL of the in-progress archive VOD for the current live stream, or
         None (offline, no user id, or 'store past broadcasts' disabled)."""
+        if self._client is None:
+            return None
         from clippyme.integrations.twitch_client import find_live_vod
         data = (self._client.get_stream(self.channel) or {}).get("data") or []
         stream_id = data[0].get("id") if data else None
@@ -647,6 +693,18 @@ class YoutubeStrategy:
     def resolve(self):
         from clippyme.integrations.youtube_feed import resolve_channel_id
         self._channel_id = resolve_channel_id(self._input)
+
+    def get_live_state(self):
+        from clippyme.integrations.youtube_feed import resolve_channel_id, resolve_live_stream
+        if self._channel_id is None:
+            self._channel_id = resolve_channel_id(self._input)
+        return resolve_live_stream(self._channel_id)
+
+    def capture_args(self, seg_path: str, seconds: int, url):
+        if not url:
+            return None
+        return ["ffmpeg", "-hide_banner", "-loglevel", "warning",
+                "-i", url, "-c", "copy", "-t", str(seconds), "-y", seg_path]
 
     def fetch_vods(self):
         from clippyme.integrations.youtube_feed import (
@@ -720,6 +778,8 @@ class LiveMonitor:
         self._gemini_exhausted_at: str | None = None
         self._gemini_key = None
         self._zernio_key = None
+        self._publisher = "zernio"
+        self._publisher_cfg: dict = {}
 
         self.cfg: dict = {}
         self.platform = id.split(":", 1)[0] if ":" in id else ""
@@ -874,9 +934,15 @@ class LiveMonitor:
         self._gemini_key = pc.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
         if not self._gemini_key:
             raise ValidationError("Gemini API key not configured")
-        self._zernio_key = load_zernio_config().get("api_key")
-        if not self._zernio_key:
+        self._publisher_cfg = load_zernio_config()
+        self._publisher = self._publisher_cfg.get("provider", "zernio")
+        self._zernio_key = self._publisher_cfg.get("api_key")
+        if self._publisher == "zernio" and not self._zernio_key:
             raise ValidationError("Zernio API key not configured")
+        if self._publisher == "postiz" and not (self._publisher_cfg.get("postiz") or {}).get("api_key"):
+            raise ValidationError("Postiz API key not configured")
+        if self._publisher == "mixpost" and not (self._publisher_cfg.get("mixpost") or {}).get("api_key"):
+            raise ValidationError("Mixpost access token not configured")
 
         self.cfg = cfg
         self.platform = cfg["platform"]
@@ -939,9 +1005,14 @@ class LiveMonitor:
         if platform == "twitch":
             cid = pc.get("TWITCH_CLIENT_ID") or os.environ.get("TWITCH_CLIENT_ID")
             secret = pc.get("TWITCH_CLIENT_SECRET") or os.environ.get("TWITCH_CLIENT_SECRET")
+            # Live mode uses Streamlink for both the public live probe and
+            # capture. OAuth is only needed for VOD feeds and in-progress-VOD
+            # backfill, not for the normal live path.
+            if cfg["mode"] == "live" and (not cid or not secret):
+                return TwitchStrategy(channel)
             if not cid or not secret:
                 raise ValidationError(
-                    "Twitch monitoring requires TWITCH_CLIENT_ID and "
+                    "Twitch VOD monitoring requires TWITCH_CLIENT_ID and "
                     "TWITCH_CLIENT_SECRET (set them in Settings or the environment)")
             from clippyme.integrations.twitch_client import TwitchClient
             return TwitchStrategy(channel, TwitchClient(cid, secret))
@@ -1054,8 +1125,15 @@ class LiveMonitor:
         while not self._stop.is_set():
             state = await self._live_state()
             if state is not None:
-                live, url, _ = state
-                if not live:
+                live, fresh_url, _ = state
+                if fresh_url:
+                    url = fresh_url
+                # A live resolver can briefly report offline while the
+                # already-resolved HLS URL is still valid (YouTube's live tab
+                # is eventually consistent and its URLs expire separately).
+                # Never discard a confirmed session before its first capture;
+                # an expired URL naturally ends the session on capture failure.
+                if not live and url is None:
                     break
             # state None: the provider didn't answer — no proof the stream
             # ended. Keep capturing on the last known URL; the capture itself
@@ -1102,8 +1180,16 @@ class LiveMonitor:
         when detected, ``remaining`` collapses to 0 and capture starts
         immediately. Returns True to proceed to capture, False if we should
         stop this session."""
+        # Streamlink-only Twitch live detection deliberately has no Helix
+        # ``started_at`` timestamp.  Treating that unknown timestamp as a
+        # fresh stream would make every already-live channel wait the full
+        # prelive window (usually 30 minutes).  Streamlink's public playback
+        # probe is already the live signal, so begin capturing immediately.
+        prelive_seconds = self.cfg["prelive_skip_seconds"]
+        if self.platform == "twitch" and getattr(self._strategy, "_client", None) is None:
+            prelive_seconds = 0
         remaining = remaining_prelive(
-            self.cfg["prelive_skip_seconds"], started_at, datetime.now(timezone.utc))
+            prelive_seconds, started_at, datetime.now(timezone.utc))
         if remaining < self.cfg["prelive_skip_seconds"]:
             logger.info(
                 "LiveMonitor %s: stream already live (started_at=%s) — "
@@ -1120,28 +1206,59 @@ class LiveMonitor:
     async def _capture_segment(self, url: str | None) -> str | None:
         """Capture up to ``segment_seconds`` of the live stream to a file."""
         os.makedirs(self._upload_dir, exist_ok=True)
+        # YouTube monitors commonly store the complete channel URL in
+        # ``channel``.  Never use that raw value as a path component: the
+        # ``https://`` slash previously made FFmpeg interpret the filename as
+        # nested directories and every live capture exited with code 254.
+        channel_name = sanitize_windows_basename(self.cfg.get("channel"), max_len=100)
+        channel_name = channel_name or hashlib.sha1(
+            str(self.cfg.get("channel") or "channel").encode("utf-8")
+        ).hexdigest()[:12]
         seg_path = os.path.join(
-            self._upload_dir, f"live_{self.platform}_{self.cfg['channel']}_{int(time.time())}.mp4")
+            self._upload_dir, f"live_{self.platform}_{channel_name}_{int(time.time())}.mp4")
         args = self._strategy.capture_args(seg_path, self.cfg["segment_seconds"], url)
         if args is None:
-            logger.warning("LiveMonitor %s: no capture method (streamlink not installed?)", self.id)
-            self.last_error = "no capture tool available (streamlink not installed?)"
+            logger.warning("LiveMonitor %s: no capture method or stream URL", self.id)
+            self.last_error = "no capture method or stream URL available"
             return None
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                *args, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+                *args, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE)
         except FileNotFoundError:
             logger.error("LiveMonitor %s: capture tool not found (%s)", self.id, args[0])
             self.last_error = f"{args[0]} not installed"
             return None
         self._ffmpeg_proc = proc
         try:
+            stderr = await proc.stderr.read() if proc.stderr is not None else b""
             await proc.wait()
         finally:
             self._ffmpeg_proc = None
 
+        finalizer = getattr(self._strategy, "finalize_capture_args", None)
+        if proc.returncode == 0 and finalizer and os.path.isfile(seg_path):
+            normalize_args, normalized_path = finalizer(seg_path, self.cfg["segment_seconds"])
+            try:
+                normalize_proc = await asyncio.create_subprocess_exec(
+                    *normalize_args, stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL)
+                await normalize_proc.wait()
+                if normalize_proc.returncode == 0 and os.path.isfile(normalized_path):
+                    os.replace(normalized_path, seg_path)
+                else:
+                    _safe_remove(normalized_path)
+            except FileNotFoundError:
+                logger.error("LiveMonitor %s: ffmpeg not installed", self.id)
+                self.last_error = "ffmpeg not installed"
+            finally:
+                _safe_remove(normalized_path)
+
         if not os.path.isfile(seg_path) or os.path.getsize(seg_path) == 0:
+            detail = stderr.decode("utf-8", "replace").strip()[-500:] if stderr else ""
+            logger.warning("LiveMonitor %s: capture exited %s%s", self.id,
+                           proc.returncode,
+                           f" — {detail}" if detail else "")
             _safe_remove(seg_path)
             return None
         return seg_path
@@ -1169,6 +1286,13 @@ class LiveMonitor:
     async def _schedule_backfill(self, started_at) -> None:
         """Compute missed windows and arrange crash-safe recovery."""
         if started_at is None:
+            return
+        if self.platform == "youtube":
+            self._missed_windows = []
+            self.backfill_pending = 0
+            self._covered_stream_start = started_at.isoformat()
+            self._covered_elapsed = 0
+            self._persist()
             return
         started_iso = started_at.isoformat()
         same_stream = self._covered_stream_start == started_iso
@@ -1799,6 +1923,7 @@ class LiveMonitor:
         attempts against the same limit.
         """
         from clippyme.integrations.social_publisher import ZernioError, publish_clip
+        from clippyme.integrations.alternative_publishers import publish_alternative
 
         async with self._publish_lock:
             attempt = 0
@@ -1810,19 +1935,22 @@ class LiveMonitor:
                                    self.cfg.get("min_gap_seconds") or 0)
                 slots_before = len(self._picked_slots)
                 try:
+                    alternative_time = None
+                    if self._publisher != "zernio":
+                        alternative_time = (
+                            datetime.now(timezone.utc) +
+                            timedelta(seconds=max(0, int(self.cfg.get("min_gap_seconds") or 0)))
+                        ).isoformat()
+                    common = dict(clip_path=upload_path, title=title[:100], caption=caption,
+                                  platform_targets=self.cfg["platforms"], schedule_mode="auto",
+                                  timezone=self.cfg["timezone"], scheduled_for=alternative_time)
+                    if self._publisher == "zernio":
+                        return await asyncio.to_thread(
+                            publish_clip, api_key=self._zernio_key, scheduler=self._scheduler,
+                            start_date=start_date, request_id=entry["request_id"], **common)
                     return await asyncio.to_thread(
-                        publish_clip,
-                        api_key=self._zernio_key,
-                        clip_path=upload_path,
-                        title=title[:100],
-                        caption=caption,
-                        platform_targets=self.cfg["platforms"],
-                        schedule_mode="auto",
-                        timezone=self.cfg["timezone"],
-                        scheduler=self._scheduler,
-                        start_date=start_date,
-                        request_id=entry["request_id"],
-                    )
+                        publish_alternative, provider=self._publisher,
+                        cfg=self._publisher_cfg, **common)
                 except Exception as exc:
                     if not _definitely_not_created(exc):
                         raise
@@ -1833,10 +1961,12 @@ class LiveMonitor:
                     del self._picked_slots[slots_before:]
                     entry["request_id"] = str(uuid.uuid4())
                     self._persist()
-                    if not isinstance(exc, ZernioError) or exc.status_code != 429:
+                    if self._publisher != "zernio" or not isinstance(exc, ZernioError) or exc.status_code != 429:
                         raise
                     body = exc.body or ""
-                    if "Daily limit" in body and day_rolls < PUBLISH_MAX_DAY_ROLLS:
+                    body_lower = body.lower()
+                    if ("daily limit" in body_lower or "daily post limit" in body_lower) \
+                            and day_rolls < PUBLISH_MAX_DAY_ROLLS:
                         base = date.fromisoformat(start_date) if start_date else date.today()
                         start_date = (base + timedelta(days=1)).isoformat()
                         day_rolls += 1

@@ -17,7 +17,7 @@ programming knowledge beyond running a few commands.
 | [Google Gemini](https://aistudio.google.com/apikey) | Picks the best moments and writes titles | Clips are split by topic instead, not ranked |
 | [Deepgram](https://console.deepgram.com) (default) or [ElevenLabs](https://elevenlabs.io) | Fast, accurate transcription | Local Whisper transcribes on your CPU/GPU (slower) |
 | [Zernio](https://zernio.com) | Publishes to TikTok, Instagram and YouTube | You download clips and post them yourself |
-| [Twitch developer app](https://dev.twitch.tv/console/apps) | Watching Twitch channels with the live monitor | Twitch monitoring is unavailable |
+| [Twitch developer app](https://dev.twitch.tv/console/apps) | Optional: Twitch VOD monitoring/backfill | Twitch live monitoring uses Streamlink and works without an OAuth app |
 
 ## Install and start
 

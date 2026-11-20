@@ -98,14 +98,27 @@ def load_zernio_config() -> dict:
     if not isinstance(zernio, dict):
         zernio = {}
     accounts = zernio.get("accounts", {})
+    postiz = zernio.get("postiz") if isinstance(zernio.get("postiz"), dict) else {}
+    mixpost = zernio.get("mixpost") if isinstance(zernio.get("mixpost"), dict) else {}
     return {
-        "api_key": zernio.get("api_key", ""),
+        "api_key": zernio.get("api_key", "") or os.environ.get("ZERNIO_API_KEY", ""),
         "accounts": accounts if isinstance(accounts, dict) else {},
         "timezone": zernio.get("timezone", "Europe/Rome"),
+        "provider": zernio.get("provider", os.environ.get("CLIPPYME_PUBLISHER", "zernio")),
+        "postiz": {
+            "base_url": postiz.get("base_url") or os.environ.get("POSTIZ_BASE_URL", "http://postiz:4007/public/v1"),
+            "api_key": postiz.get("api_key") or os.environ.get("POSTIZ_API_KEY", ""),
+        },
+        "mixpost": {
+            "base_url": mixpost.get("base_url") or os.environ.get("MIXPOST_BASE_URL", "http://mixpost/mixpost/api"),
+            "api_key": mixpost.get("api_key") or os.environ.get("MIXPOST_API_KEY", ""),
+            "workspace_id": mixpost.get("workspace_id") or os.environ.get("MIXPOST_WORKSPACE_ID", ""),
+        },
     }
 
 
-def save_zernio_config(api_key: str = None, accounts: dict = None, timezone: str = None) -> bool:
+def save_zernio_config(api_key: str = None, accounts: dict = None, timezone: str = None,
+                       provider: str = None, postiz: dict = None, mixpost: dict = None) -> bool:
     """Merge-update Zernio settings as one locked read-modify-write."""
     with _CONFIG_LOCK:
         raw = _read_raw_config()
@@ -129,6 +142,15 @@ def save_zernio_config(api_key: str = None, accounts: dict = None, timezone: str
             current["accounts"] = merged
         if timezone is not None:
             current["timezone"] = timezone
+        if provider is not None:
+            if provider not in {"zernio", "postiz", "mixpost"}:
+                raise ValueError("provider must be zernio, postiz, or mixpost")
+            current["provider"] = provider
+        for name, value in (("postiz", postiz), ("mixpost", mixpost)):
+            if value is not None:
+                if not isinstance(value, dict):
+                    raise ValueError(f"{name} configuration must be an object")
+                current[name] = value
         raw[ZERNIO_CONFIG_NAMESPACE] = current
         return _write_raw_config(raw)
 
@@ -137,11 +159,22 @@ def zernio_config_status() -> dict:
     cfg = load_zernio_config()
     api_key = cfg.get("api_key", "")
     masked = f"{api_key[:6]}...{api_key[-4:]}" if api_key and len(api_key) > 10 else ""
+    provider = cfg.get("provider", "zernio")
+    active_configured = {
+        "zernio": bool(api_key),
+        "postiz": bool((cfg.get("postiz") or {}).get("api_key")),
+        "mixpost": bool((cfg.get("mixpost") or {}).get("api_key") and
+                         (cfg.get("mixpost") or {}).get("workspace_id")),
+    }.get(provider, False)
     return {
-        "configured": bool(api_key),
+        "configured": active_configured,
         "api_key_masked": masked,
         "accounts": cfg.get("accounts", {}),
         "timezone": cfg.get("timezone", "Europe/Rome"),
+        "provider": cfg.get("provider", "zernio"),
+        "postiz": {"configured": bool((cfg.get("postiz") or {}).get("api_key"))},
+        "mixpost": {"configured": bool((cfg.get("mixpost") or {}).get("api_key")),
+                    "workspace_configured": bool((cfg.get("mixpost") or {}).get("workspace_id"))},
     }
 
 

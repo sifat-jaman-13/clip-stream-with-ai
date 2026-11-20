@@ -1,6 +1,6 @@
 // ClippyMe — Live Monitor: start/stop concurrent channel monitors
-// (Kick/Twitch live, or YouTube/Kick/Twitch VOD feeds) and show each one's
-// capture→process→publish state. Reuses the Zernio platform-picker pattern
+// (Kick/Twitch/YouTube live, or YouTube/Kick/Twitch VOD feeds) and show each one's
+// capture→process→publish state. Reuses the provider platform-picker pattern
 // from publish.jsx (same PLAT map + accounts source).
 import { useState, useEffect } from 'react';
 import { Hero } from '../../components/headers';
@@ -244,12 +244,12 @@ function MonitorCard({ monitor, onStop, stopping, onApplySettings, applyingSetti
 
       <div className="opt" style={{ borderBottom: 0, paddingLeft: 0, paddingRight: 0, marginTop: 6 }}>
         <div className="otxt">
-          <div className="ot">Zernio auto-publish</div>
+          <div className="ot">Auto-publish</div>
           {!monitor.publishing_enabled && (
             <div className="od">Paused — {monitor.pending_publish || 0} clip(s) waiting</div>
           )}
         </div>
-        <Switch on={!!monitor.publishing_enabled} disabled={togglingPublishing} label={`Zernio auto-publish ${monitor.id}`}
+        <Switch on={!!monitor.publishing_enabled} disabled={togglingPublishing} label={`Auto-publish ${monitor.id}`}
           onChange={(on) => onTogglePublishing(monitor.id, on)} />
       </div>
 
@@ -295,8 +295,9 @@ export function LiveMonitorView({ pushToast }) {
 
   useEffect(() => { getZernio().then(setZernio).catch(() => setZernio({ configured: false })); }, []);
 
-  // YouTube has no "live" concept for this monitor (clips new uploads only).
-  useEffect(() => { if (platform === 'youtube' && mode !== 'vod') setMode('vod'); }, [platform, mode]);
+  // YouTube live capture starts at detection time; its VOD feed remains
+  // available separately for new long-form uploads.
+  useEffect(() => { if (platform === 'youtube') setCatchup('live_only'); }, [platform]);
 
   const accounts = zernio?.accounts || {};
   const toggle = (k) => setPlats((p) => ({ ...p, [k]: !p[k] }));
@@ -333,7 +334,7 @@ export function LiveMonitorView({ pushToast }) {
     } catch (e) {
       const kind = classifyStartError(e.message);
       if (kind === 'duplicate') pushToast?.('warn', 'Already monitoring that channel.');
-      else if (kind === 'twitch_creds') pushToast?.('error', 'Twitch not configured — add TWITCH_CLIENT_ID/SECRET in Settings.');
+      else if (kind === 'twitch_creds') pushToast?.('error', 'Twitch VOD mode needs TWITCH_CLIENT_ID/SECRET in Settings; live mode uses Streamlink.');
       else pushToast?.('error', 'Start failed: ' + String(e.message || e).slice(0, 80));
     } finally {
       setStarting(false);
@@ -396,7 +397,7 @@ export function LiveMonitorView({ pushToast }) {
         ))}
       </Panel>
 
-      <Panel title="Start monitor" sub="Requires Zernio configured in Settings" icon="wand-sparkles">
+        <Panel title="Start monitor" sub="Requires a publishing provider configured in Settings" icon="wand-sparkles">
         <Group title="Source" hint="What gets watched, and which part of it is worth clipping.">
         <div className="field">
           <span className="field-label">Platform</span>
@@ -408,7 +409,7 @@ export function LiveMonitorView({ pushToast }) {
           <Segmented value={mode} onChange={setMode}
             options={[{ id: 'live', label: 'Live' }, { id: 'vod', label: 'VOD' }]} full />
           {platform === 'youtube' && (
-            <div className="od">YouTube: clips every new long-form upload; Shorts excluded</div>
+            <div className="od">Live captures the active broadcast; VOD watches new long-form uploads</div>
           )}
         </div>
 
@@ -541,7 +542,7 @@ export function LiveMonitorView({ pushToast }) {
         </div>
         </Group>
 
-        <Group title="Publishing" hint="Where every finished clip goes on Zernio, and how far apart the posts are scheduled.">
+        <Group title="Publishing" hint="Where every finished clip goes, and how far apart posts are scheduled.">
         <div className="field">
           <span className="field-label">Post to</span>
           <div className="plats">

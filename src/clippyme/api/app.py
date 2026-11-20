@@ -4,6 +4,8 @@ import uuid
 import shutil
 import asyncio
 import logging
+from collections import deque
+from threading import Lock
 from dotenv import load_dotenv
 from typing import Dict, Optional
 
@@ -17,6 +19,29 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("clippyme")
+
+_RECENT_LOGS = deque(maxlen=1000)
+_RECENT_LOGS_LOCK = Lock()
+
+
+class _RecentLogHandler(logging.Handler):
+    def emit(self, record):
+        try:
+            item = {
+                "time": self.format(record),
+                "level": record.levelname,
+                "logger": record.name,
+                "message": record.getMessage(),
+            }
+            with _RECENT_LOGS_LOCK:
+                _RECENT_LOGS.append(item)
+        except Exception:
+            pass
+
+
+_recent_log_handler = _RecentLogHandler()
+_recent_log_handler.setFormatter(logging.Formatter("%(asctime)s"))
+logger.addHandler(_recent_log_handler)
 
 # The pinned dependency set (faster-whisper, mediapipe, etc.) is only tested on
 # Python 3.11+. Warn loudly rather than failing with a cryptic import error on
@@ -936,6 +961,16 @@ async def live_monitor_status(request: Request, monitor_id: Optional[str] = None
     """One monitor's status (``?monitor_id=``) or ``{"monitors": [...]}`` for all."""
     require_trusted_config_request(request)
     return live_monitor.status(monitor_id)
+
+
+@app.get("/api/logs")
+async def recent_logs(request: Request, limit: int = 500):
+    """Recent backend logs for the local diagnostic Logs tab."""
+    require_trusted_config_request(request)
+    limit = max(1, min(int(limit), 1000))
+    with _RECENT_LOGS_LOCK:
+        rows = list(_RECENT_LOGS)[-limit:]
+    return {"logs": rows}
 
 
 @app.post("/api/history/{job_id}/restore")

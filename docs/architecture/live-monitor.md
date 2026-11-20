@@ -10,8 +10,8 @@ platform) and submits ordinary jobs through the same queue as the dashboard.
 | Platform | `live` mode | `vod` mode |
 |----------|-------------|------------|
 | Kick | Captures the running stream in segments (default 30 min) and processes each segment as a job | Processes each new VOD |
-| Twitch | Same as Kick (Helix app credentials required) | Processes each new VOD |
-| YouTube | — | New long-form uploads from the channel's RSS feed (Shorts are excluded by the feed choice), from activation onward |
+| Twitch | Streamlink probes and captures the running stream without OAuth; Helix credentials are only needed for VOD/backfill | Processes each new VOD |
+| YouTube | Polls the channel's live tab and captures the active broadcast in segments (starts when detected) | New long-form uploads from the channel's RSS feed (Shorts are excluded by the feed choice), from activation onward |
 
 Several monitors run at once, one per platform + channel. State survives
 restarts in `data/live_monitor.json`; monitors marked `resume_on_start` start
@@ -21,12 +21,15 @@ again automatically.
 
 - **Prelive skip** (`prelive_skip_seconds`, default 30 min): the waiting screen
   at the start of a stream is skipped, measured from the stream's own start
-  time. On Kick and Twitch it also applies to VODs; never to YouTube uploads.
+  time. On Kick and Twitch it also applies to VODs; YouTube live and uploads
+  start at their actual content.
 - **Catch-up** (`catchup`, live mode only, chosen at start): `backfill`
   recovers stream time that passed before capture began — on Twitch by range
   download from the in-progress archive VOD (matched by `stream_id`), on Kick
   from the replay once the stream ends, since Kick publishes no VOD while live.
-  `live_only` starts coverage at launch.
+  YouTube live monitors use `live_only` semantics because expiring HLS URLs do
+  not provide a stable DVR/range-download contract. `live_only` starts coverage
+  at detection.
 - **Clip selection**: `fixed` publishes the top `max_clips` (default 5) of a
   segment by viral score; `auto` first drops clips under `min_viral_score`
   (default 70), so a weak segment yields fewer clips or none. `max_clips: 0`

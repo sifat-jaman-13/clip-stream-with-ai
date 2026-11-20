@@ -10,6 +10,12 @@ import { clipDownloadName } from '../lib/clipFilename.js';
 
 export { clipDownloadName };
 
+export async function getRecentLogs(limit = 500) {
+  const res = await apiFetch(getApiUrl(`/api/logs?limit=${limit}`));
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 // Only http/https absolute URLs are honoured as-is; anything else (javascript:,
 // data:, blob:, or a bare "httpfoo:" that slips past a startsWith check) is
 // treated as a relative path and resolved against our own backend. This stops

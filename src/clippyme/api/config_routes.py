@@ -368,6 +368,9 @@ async def update_zernio_config(req: ZernioConfigRequest, request: Request):
         api_key=req.api_key,
         accounts=req.accounts,
         timezone=req.timezone,
+        provider=req.provider,
+        postiz=req.postiz,
+        mixpost=req.mixpost,
     )
     if not ok:
         raise HTTPException(status_code=500, detail="Failed to save Zernio config")

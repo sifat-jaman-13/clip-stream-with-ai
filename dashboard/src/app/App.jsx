@@ -14,6 +14,7 @@ import { ResultsView } from '../features/results/results';
 import { PublishModal } from '../features/publishing/publish';
 import { HistoryView } from '../features/history/history';
 import { SettingsView, ApiKeyModal } from '../features/settings/settings';
+import { LogsView } from '../features/logs/logs';
 import { LiveMonitorView } from '../features/live-monitor/live';
 import { EditClipModal } from '../features/clip-editor/editClipModal';
 import { optsToPreselections, restoreJob, deleteHistoryJob, getStorageUsage, cancelJob, pauseJob, resumeJob, stopJob, reframeClip, composeClip } from '../api/client';
@@ -487,6 +488,8 @@ export default function App() {
             pushToast={pushToast} />
         </div>
       )}
+
+      {tab === 'logs' && <LogsView pushToast={pushToast} />}
 
       {tab === 'settings' && <SettingsView apiKey={apiKey} onApiKey={setApiKey} cookiesConfigured={cookiesConfigured} onCookiesChange={setCookiesConfigured} pushToast={pushToast} />}
 

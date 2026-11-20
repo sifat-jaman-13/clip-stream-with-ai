@@ -22,10 +22,33 @@ from clippyme.monitoring.live_monitor import (
     should_process_segment,
     validate_monitor_config,
     validate_monitor_partial_update,
+    TwitchStrategy,
     _hhmmss,
     _SNAPSHOT_CONFIG_FIELDS,
 )
 from clippyme.integrations.twitch_client import find_live_vod
+
+
+def test_twitch_streamlink_live_probe_needs_no_oauth(monkeypatch):
+    class Result:
+        returncode = 0
+        stdout = '{"type": "hls", "url": "https://example.test/live.m3u8"}'
+
+    monkeypatch.setattr("clippyme.monitoring.live_monitor.shutil.which", lambda name: "/usr/bin/streamlink")
+    monkeypatch.setattr("clippyme.monitoring.live_monitor.subprocess.run", lambda *args, **kwargs: Result())
+    live, url, started = TwitchStrategy("xqc").get_live_state()
+    assert live is True and url is None and started is None
+
+
+def test_twitch_capture_uses_streamlink_and_normalizes_bitrate():
+    strategy = TwitchStrategy("xqc")
+    args = strategy.capture_args("/tmp/segment.mp4", 600, None)
+    assert args[0] == "streamlink"
+    assert "--twitch-disable-ads" in args
+    normalize, output = strategy.finalize_capture_args("/tmp/segment.mp4", 600)
+    assert normalize[0] == "ffmpeg"
+    assert normalize[normalize.index("-b:v") + 1] == "8000k"
+    assert output.endswith(".normalized.mp4")
 
 
 # --- allocate_clip_filename (title-named, continuous collision counter) ----
@@ -299,9 +322,11 @@ def test_validate_config_vod_poll_default():
     assert cfg["channel"] == "@somebody"
 
 
-def test_validate_config_youtube_live_rejected():
-    with pytest.raises(ValidationError):
-        validate_monitor_config(_base_cfg(platform="youtube", mode="live", slug="@x"))
+def test_validate_config_youtube_live_uses_live_only_capture():
+    cfg = validate_monitor_config(_base_cfg(platform="youtube", mode="live", slug="@x"))
+    assert cfg["mode"] == "live"
+    assert cfg["catchup"] == "live_only"
+    assert cfg["prelive_skip_seconds"] == 0
 
 
 def test_validate_config_bad_platform_or_mode():
