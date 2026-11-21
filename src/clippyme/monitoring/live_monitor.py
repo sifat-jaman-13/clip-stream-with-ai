@@ -2055,7 +2055,7 @@ class LiveMonitor:
             except Exception:
                 logger.warning("LiveMonitor %s: publish record failed for %s",
                                self.id, clip_path, exc_info=True)
-        if not self.cfg.get("delete_after_publish", True):
+        if not self.cfg.get("delete_after_publish", False):
             # User opted to keep raw artifacts around (QA/re-edit) — clip is
             # still recorded as published above so it's never re-published.
             return
