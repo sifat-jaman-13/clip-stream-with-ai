@@ -427,10 +427,10 @@ def validate_monitor_config(config: dict, default_timezone: str = "Europe/Rome")
         "banner": config.get("banner") if isinstance(config.get("banner"), dict) else None,
         "compose": config.get("compose") if isinstance(config.get("compose"), dict) else None,
         # Whether a confirmed Zernio publish deletes the job's raw clip
-        # artifacts. Default ON (frees disk); flip off to keep them for
-        # manual QA/re-edit at the cost of storage.
+        # artifacts. Default OFF so published clips remain available in History
+        # for review/re-edit; enable only when disk space is more important.
         "delete_after_publish": _validate_bool(
-            config.get("delete_after_publish", True), "delete_after_publish"),
+            config.get("delete_after_publish", False), "delete_after_publish"),
         # Max clips kept per segment (top-N by viral_score) — bounds a
         # publish-limited monitor's output. Default 5; 0 = NO cap (every clip
         # the segment yields gets published). In "auto" selection it stays the
