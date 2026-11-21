@@ -736,6 +736,36 @@ def test_registry_auto_resume_failure_is_visible_in_status(tmp_path, monkeypatch
     assert reg._snapshots["kick:foo"]["resume_on_start"] is True
 
 
+def test_registry_migrates_old_delete_after_publish_default(tmp_path):
+    import json
+
+    state = tmp_path / "state.json"
+    old_snapshot = {
+        "platform": "kick", "mode": "live", "channel": "foo",
+        "config": {
+            "platform": "kick", "mode": "live", "channel": "foo", "slug": "foo",
+            "delete_after_publish": True,
+        },
+        "resume_on_start": True,
+    }
+    state.write_text(json.dumps({"monitors": {"kick:foo": old_snapshot}}), encoding="utf-8")
+
+    reg = LiveMonitorRegistry(
+        jobs={}, job_queue=None, output_dir=str(tmp_path), state_path=str(state))
+
+    assert reg._snapshots["kick:foo"]["config"]["delete_after_publish"] is False
+    saved = json.loads(state.read_text(encoding="utf-8"))
+    assert saved["published_clip_retention_version"] == 1
+    assert saved["monitors"]["kick:foo"]["config"]["delete_after_publish"] is False
+
+    # Once migrated, a deliberate opt-in is preserved across later restarts.
+    reg._snapshots["kick:foo"]["config"]["delete_after_publish"] = True
+    reg.persist()
+    restored = LiveMonitorRegistry(
+        jobs={}, job_queue=None, output_dir=str(tmp_path), state_path=str(state))
+    assert restored._snapshots["kick:foo"]["config"]["delete_after_publish"] is True
+
+
 def test_registry_migrates_legacy_state(tmp_path):
     import json
     state = tmp_path / "state.json"
