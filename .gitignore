@@ -39,6 +39,14 @@ output/
 .vscode/
 
 # Secrets
+.env.*
+!/.env.example
+*.log
+logs/
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-*
 .env
 data/
 config.json
@@ -72,3 +80,16 @@ fonts/NotoColorEmoji.ttf
 
 # Local Codex CLI settings
 .codex/
+
+# Generated build and test output
+build/
+dist/
+coverage/
+htmlcov/
+playwright-report/
+test-results/
+.ruff_cache/
+.mypy_cache/
+*.tmp
+*.bak
+recordings/

@@ -567,6 +567,7 @@ def test_post_accept_io_frees_the_loop_but_not_the_clip(tmp_path, monkeypatch):
     job_dir = _two_clip_job(tmp_path)
     _fake_publisher(monkeypatch)
     mon = _monitor(tmp_path, jobs={"job1": {"status": "completed"}})
+    mon.cfg["delete_after_publish"] = True  # explicitly test the cleanup path
     clip = {"video_url": "/videos/job1/c.mp4", "title": "T", "original_index": 0}
     entry = {"job_id": "job1", "clip": clip, "composed_path": str(job_dir / "c.mp4")}
     cleanup_started, release = threading.Event(), threading.Event()

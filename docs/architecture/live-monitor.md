@@ -52,7 +52,7 @@ flowchart LR
     H --> P[Pending queue<br/>persisted]
     P --> S[Pick a slot<br/>global spacing]
     S --> U[Upload + create post<br/>Idempotency-Key]
-    U -- accepted --> R[Record, delete clip artifacts]
+    U -- accepted --> R[Record; keep clips by default]
     U -- ambiguous / retryable --> W[retry_wait<br/>same request_id]
     W --> S
     U -- rejected --> F[failed<br/>new request_id next time]
@@ -70,10 +70,11 @@ flowchart LR
   Zernio `Idempotency-Key`. Retries back off from 60 s to 1 h, at most 8
   attempts. Identity and idempotency rules are in
   [publishing.md](publishing.md#publish-identities).
-- After a confirmed publish the clip's files are deleted (default
-  `delete_after_publish: true`) and its metadata entry is marked
-  `deleted_after_publish`. Positions in `shorts` stay stable, so consumers
-  address clips by `original_index`.
+- After a confirmed publish the clip is recorded in metadata and its local
+  files are kept by default (`delete_after_publish: false`). Enable
+  `delete_after_publish: true` per monitor only when you want to remove local
+  clip artifacts after Zernio accepts the post. Positions in `shorts` stay
+  stable, so consumers address clips by `original_index`.
 - While the monitor owns a clip (job not yet handed off, or publication
   queued / in flight / waiting to retry) a manual publish of that clip answers
   409. A failed publication releases it.

@@ -396,16 +396,16 @@ def test_partial_update_allows_banner_and_compose():
     assert new_cfg["compose"] == {"toggles": {"hook": False}}
 
 
-def test_delete_after_publish_defaults_on():
-    assert validate_monitor_config(_base_cfg())["delete_after_publish"] is True
+def test_delete_after_publish_defaults_off():
+    assert validate_monitor_config(_base_cfg())["delete_after_publish"] is False
 
 
 def test_delete_after_publish_is_updatable_and_snapshotted():
     assert "delete_after_publish" in _SNAPSHOT_CONFIG_FIELDS
     current = _running_cfg()
-    assert current["delete_after_publish"] is True
-    new_cfg = validate_monitor_partial_update({"delete_after_publish": False}, current)
-    assert new_cfg["delete_after_publish"] is False
+    assert current["delete_after_publish"] is False
+    new_cfg = validate_monitor_partial_update({"delete_after_publish": True}, current)
+    assert new_cfg["delete_after_publish"] is True
 
 
 def test_delete_after_publish_rejects_non_bool():
@@ -736,6 +736,36 @@ def test_registry_auto_resume_failure_is_visible_in_status(tmp_path, monkeypatch
     assert reg._snapshots["kick:foo"]["resume_on_start"] is True
 
 
+def test_registry_migrates_old_delete_after_publish_default(tmp_path):
+    import json
+
+    state = tmp_path / "state.json"
+    old_snapshot = {
+        "platform": "kick", "mode": "live", "channel": "foo",
+        "config": {
+            "platform": "kick", "mode": "live", "channel": "foo", "slug": "foo",
+            "delete_after_publish": True,
+        },
+        "resume_on_start": True,
+    }
+    state.write_text(json.dumps({"monitors": {"kick:foo": old_snapshot}}), encoding="utf-8")
+
+    reg = LiveMonitorRegistry(
+        jobs={}, job_queue=None, output_dir=str(tmp_path), state_path=str(state))
+
+    assert reg._snapshots["kick:foo"]["config"]["delete_after_publish"] is False
+    saved = json.loads(state.read_text(encoding="utf-8"))
+    assert saved["published_clip_retention_version"] == 1
+    assert saved["monitors"]["kick:foo"]["config"]["delete_after_publish"] is False
+
+    # Once migrated, a deliberate opt-in is preserved across later restarts.
+    reg._snapshots["kick:foo"]["config"]["delete_after_publish"] = True
+    reg.persist()
+    restored = LiveMonitorRegistry(
+        jobs={}, job_queue=None, output_dir=str(tmp_path), state_path=str(state))
+    assert restored._snapshots["kick:foo"]["config"]["delete_after_publish"] is True
+
+
 def test_registry_migrates_legacy_state(tmp_path):
     import json
     state = tmp_path / "state.json"
@@ -1063,7 +1093,7 @@ def _publishing_monitor(tmp_path, monkeypatch, *, jobs=None):
                       job_queue=None, output_dir=str(tmp_path))
     mon.cfg = {"title_template": "{title}", "caption_template": "{hook}",
                "platforms": [{"platform": "tiktok", "accountId": "a"}],
-               "timezone": "Europe/Rome"}
+               "timezone": "Europe/Rome", "delete_after_publish": False}
     mon._zernio_key = "sk_test"
 
     # Skip the real ffmpeg compose pass — publish/delete behaviour is what these
@@ -1216,6 +1246,7 @@ def test_successful_publish_deletes_clip_files_and_empty_dir(tmp_path, monkeypat
 
     jobs = {"job1": {"status": "completed"}}
     mon, calls = _publishing_monitor(tmp_path, monkeypatch, jobs=jobs)
+    mon.cfg["delete_after_publish"] = True  # explicit opt-in to cleanup
     clip = {"video_url": "/videos/job1/c.mp4", "title": "T", "original_index": 0}
     entry = {"job_id": "job1", "clip": clip, "composed_path": str(composed)}
 
@@ -1244,6 +1275,7 @@ def test_successful_publish_keeps_dir_and_marks_metadata_when_clips_remain(tmp_p
 
     jobs = {"job1": {"status": "completed"}}
     mon, calls = _publishing_monitor(tmp_path, monkeypatch, jobs=jobs)
+    mon.cfg["delete_after_publish"] = True  # explicit opt-in to cleanup
     clip = {"video_url": "/videos/job1/c.mp4", "title": "T", "original_index": 0}
     entry = {"job_id": "job1", "clip": clip, "composed_path": str(job_dir / "c.mp4")}
 
@@ -1257,9 +1289,9 @@ def test_successful_publish_keeps_dir_and_marks_metadata_when_clips_remain(tmp_p
     assert "deleted_after_publish" not in data["shorts"][1]
 
 
-def test_delete_after_publish_false_keeps_artifacts_but_marks_published(tmp_path, monkeypatch):
-    """delete_after_publish=False: clip is recorded as published (no
-    re-publish) but its raw artifacts + metadata are left untouched."""
+def test_published_clip_artifacts_are_kept_by_default(tmp_path, monkeypatch):
+    """The default keeps artifacts after publish and records the publication
+    so the live monitor does not publish the same clip twice."""
     import asyncio
     import json
 
@@ -1276,7 +1308,6 @@ def test_delete_after_publish_false_keeps_artifacts_but_marks_published(tmp_path
 
     jobs = {"job1": {"status": "completed"}}
     mon, calls = _publishing_monitor(tmp_path, monkeypatch, jobs=jobs)
-    mon.cfg["delete_after_publish"] = False
     clip = {"video_url": "/videos/job1/c.mp4", "title": "T", "original_index": 0}
     clip_path = os.path.join(str(tmp_path), "job1", "c.mp4")
     entry = {"job_id": "job1", "clip": clip, "composed_path": str(composed)}
@@ -1316,6 +1347,7 @@ def test_deletion_failure_does_not_raise_and_clip_stays_published(tmp_path, monk
     monkeypatch.setattr(lm.os, "remove", boom)
 
     mon, calls = _publishing_monitor(tmp_path, monkeypatch)
+    mon.cfg["delete_after_publish"] = True  # force cleanup path for failure test
     clip = {"video_url": "/videos/job1/c.mp4", "title": "T", "original_index": 0}
     entry = {"job_id": "job1", "clip": clip, "composed_path": str(job_dir / "c.mp4")}
 

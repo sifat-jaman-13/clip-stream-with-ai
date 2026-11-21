@@ -91,9 +91,9 @@ function MonitorSettings({ monitor, onApply, applying }) {
   const [minGapMin, setMinGapMin] = useState(secToMin(cfg.min_gap_seconds));
   const [subOn, setSubOn] = useState(!!cfg.compose?.subtitle_params);
   const [sub, setSub] = useState(() => fromComposeSubtitleParams(cfg.compose?.subtitle_params, SUB_DEFAULTS));
-  // Default-on (matches the backend default): only an explicit `false` in the
-  // persisted config starts the checkbox unchecked.
-  const [deleteAfterPublish, setDeleteAfterPublish] = useState(cfg.delete_after_publish !== false);
+  // Default-off (matches the backend): only an explicit `true` in the
+  // persisted config enables post-publish cleanup.
+  const [deleteAfterPublish, setDeleteAfterPublish] = useState(cfg.delete_after_publish === true);
   const [deleteAfterPublishTouched, setDeleteAfterPublishTouched] = useState(false);
   const [clipSelection, setClipSelection] = useState(cfg.clip_selection === 'auto' ? 'auto' : 'fixed');
   const [clipSelectionTouched, setClipSelectionTouched] = useState(false);
@@ -196,7 +196,7 @@ function MonitorSettings({ monitor, onApply, applying }) {
           options={ZOOM_OPTIONS} />
       </div>
       <div className="opt" style={{ borderBottom: 0, paddingLeft: 0, paddingRight: 0 }}>
-        <div className="otxt"><div className="ot">Delete clip after publish</div><div className="od">Frees disk once a clip is confirmed published</div></div>
+        <div className="otxt"><div className="ot">Delete clip after publish</div><div className="od">Off by default. Enable only if you want to remove the local clip after Zernio confirms the post.</div></div>
         <Switch on={deleteAfterPublish} label={`Delete after publish ${monitor.id}`}
           onChange={(on) => { setDeleteAfterPublish(on); setDeleteAfterPublishTouched(true); }} />
       </div>
