@@ -326,7 +326,7 @@ test('no Gemini rate-limit notice when gemini_exhausted_at is unset', async () =
   expect(screen.queryByText(/rate.?limit/i)).toBeNull();
 });
 
-test('delete-after-publish checkbox seeds true by default and sends nothing when untouched', async () => {
+test('delete-after-publish defaults off and sends nothing when untouched', async () => {
   const { updateMonitorConfig } = await import('../../api/client');
   mockStatus.mockResolvedValue({
     monitors: [{ id: 'kick:xqc', platform: 'kick', mode: 'live', running: true, state: 'capturing', channel: 'xqc', config: {} }],
@@ -335,21 +335,10 @@ test('delete-after-publish checkbox seeds true by default and sends nothing when
   await screen.findByText('xqc');
   fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
   const toggle = screen.getByRole('switch', { name: 'Delete after publish kick:xqc' });
-  expect(toggle).toHaveAttribute('aria-checked', 'true');
+  expect(toggle).toHaveAttribute('aria-checked', 'false');
   fireEvent.change(screen.getByLabelText('Settings instructions kick:xqc'), { target: { value: 'find hype moments' } });
   fireEvent.click(screen.getByRole('button', { name: /Apply/ }));
   await waitFor(() => expect(updateMonitorConfig).toHaveBeenCalledWith('kick:xqc', { instructions: 'find hype moments' }));
-});
-
-test('delete-after-publish defaults off for a monitor without a saved preference', async () => {
-  mockStatus.mockResolvedValue({
-    monitors: [{ id: 'kick:xqc', platform: 'kick', mode: 'live', running: true, state: 'capturing', channel: 'xqc',
-      config: {} }],
-  });
-  render(<LiveMonitorView />);
-  await screen.findByText('xqc');
-  fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
-  expect(screen.getByRole('switch', { name: 'Delete after publish kick:xqc' })).toHaveAttribute('aria-checked', 'false');
 });
 
 test('delete-after-publish checkbox seeds false from config and sends only when toggled', async () => {
