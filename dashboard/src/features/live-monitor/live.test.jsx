@@ -341,6 +341,17 @@ test('delete-after-publish checkbox seeds true by default and sends nothing when
   await waitFor(() => expect(updateMonitorConfig).toHaveBeenCalledWith('kick:xqc', { instructions: 'find hype moments' }));
 });
 
+test('delete-after-publish defaults off for a monitor without a saved preference', async () => {
+  mockStatus.mockResolvedValue({
+    monitors: [{ id: 'kick:xqc', platform: 'kick', mode: 'live', running: true, state: 'capturing', channel: 'xqc',
+      config: {} }],
+  });
+  render(<LiveMonitorView />);
+  await screen.findByText('xqc');
+  fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+  expect(screen.getByRole('switch', { name: 'Delete after publish kick:xqc' })).toHaveAttribute('aria-checked', 'false');
+});
+
 test('delete-after-publish checkbox seeds false from config and sends only when toggled', async () => {
   const { updateMonitorConfig } = await import('../../api/client');
   mockStatus.mockResolvedValue({
