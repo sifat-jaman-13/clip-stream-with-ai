@@ -2425,6 +2425,9 @@ class LiveMonitorRegistry:
         data = {
             "monitors": snapshots,
             "picked_slots": [d.isoformat() for d in self._picked_slots],
+            # Version the retention migration so an explicit opt-in made after
+            # this release survives later restarts.
+            "published_clip_retention_version": 1,
             "updated_at": datetime.now().isoformat(),
         }
         try:
@@ -2456,6 +2459,11 @@ class LiveMonitorRegistry:
             return
         if not isinstance(data, dict):
             return
+        try:
+            retention_version = int(data.get("published_clip_retention_version", 0))
+        except (TypeError, ValueError):
+            retention_version = 0
+        migrate_retention = retention_version < 1
         monitors = data.get("monitors")
         if not isinstance(monitors, dict):
             # Migrate the legacy single-Kick-monitor shape (top-level slug/published).
@@ -2472,6 +2480,15 @@ class LiveMonitorRegistry:
             if not isinstance(snap, dict):
                 continue
             cfg = snap.get("config") if isinstance(snap.get("config"), dict) else {}
+            if migrate_retention and isinstance(snap.get("config"), dict):
+                # Older releases persisted True even when the user never
+                # touched this option, because deletion used to be the default.
+                # Prefer keeping the user's local videos during upgrade. Users
+                # can explicitly opt back into cleanup in monitor Settings.
+                cfg = dict(cfg)
+                cfg["delete_after_publish"] = False
+                snap = dict(snap)
+                snap["config"] = cfg
             platform = cfg.get("platform") or snap.get("platform")
             channel = cfg.get("channel") or snap.get("channel")
             if platform and channel:
@@ -2484,3 +2501,7 @@ class LiveMonitorRegistry:
                 self._picked_slots.append(datetime.fromisoformat(iso))
             except (ValueError, TypeError):
                 continue
+        if migrate_retention:
+            # Persist immediately, including for monitors that are currently
+            # stopped and therefore will not be rewritten by auto-resume.
+            self.persist()
