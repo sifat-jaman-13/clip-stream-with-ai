@@ -1205,7 +1205,7 @@ class LiveMonitor:
         # nested directories and every live capture exited with code 254.
         channel_name = sanitize_windows_basename(self.cfg.get("channel"), max_len=100)
         channel_name = channel_name or hashlib.sha1(
-            str(self.cfg.get("channel") or "channel").encode("utf-8")
+            str(self.cfg.get("channel") or "channel").encode("utf-8"), usedforsecurity=False
         ).hexdigest()[:12]
         seg_path = os.path.join(
             self._upload_dir, f"live_{self.platform}_{channel_name}_{int(time.time())}.mp4")
