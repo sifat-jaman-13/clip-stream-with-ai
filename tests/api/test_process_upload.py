@@ -113,3 +113,52 @@ def test_queue_full_removes_uploaded_input(client, monkeypatch):
     assert resp.status_code == 429
     assert os.listdir(uploads) == []
     assert os.listdir(outputs) == []
+
+
+
+def _stub_job_submission(monkeypatch):
+    """Capture queued jobs without starting subprocess workers."""
+    queued = []
+
+    async def fake_submit_job(**kwargs):
+        queued.append(kwargs)
+
+    monkeypatch.setattr(app_module, "load_persistent_config", lambda: {
+        "GEMINI_API_KEY": "saved-local-key",
+        "GEMINI_MODEL": "gemini-2.5-flash",
+    })
+    monkeypatch.setattr(app_module, "build_main_cmd", lambda **kwargs: ["python", "-c", "pass"])
+    monkeypatch.setattr(app_module, "submit_job", fake_submit_job)
+    return queued
+
+
+def test_process_uses_saved_backend_key_when_browser_header_is_absent(client, monkeypatch):
+    tc, _, _ = client
+    queued = _stub_job_submission(monkeypatch)
+
+    response = tc.post("/api/process", json={"url": "https://example.com/video"})
+
+    assert response.status_code == 200, response.text
+    assert len(queued) == 1
+    assert queued[0]["env"]["GEMINI_API_KEY"] == "saved-local-key"
+
+
+def test_batch_uses_saved_backend_key_when_browser_header_is_absent(client, monkeypatch):
+    tc, _, _ = client
+    queued = _stub_job_submission(monkeypatch)
+
+    response = tc.post("/api/batch", json={"urls": ["https://example.com/video"]})
+
+    assert response.status_code == 200, response.text
+    assert len(queued) == 1
+    assert queued[0]["env"]["GEMINI_API_KEY"] == "saved-local-key"
+
+
+def test_process_reports_missing_key_only_when_backend_has_no_saved_key(client, monkeypatch):
+    tc, _, _ = client
+    monkeypatch.setattr(app_module, "load_persistent_config", lambda: {})
+
+    response = tc.post("/api/process", json={"url": "https://example.com/video"})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Gemini API key not configured. Add it in Settings."
