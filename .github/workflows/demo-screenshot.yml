@@ -6,7 +6,10 @@ on:
     paths:
       - ".github/workflows/demo-screenshot.yml"
       - "Dockerfile"
-      - "docker-compose.yml"
+      - "docker-compose*.yml"
+      - "requirements*.txt"
+      - "src/**"
+      - "dashboard/**"
   workflow_dispatch:
 
 permissions:
