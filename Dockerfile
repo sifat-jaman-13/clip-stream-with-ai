@@ -22,7 +22,12 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     software-properties-common && \
     add-apt-repository ppa:deadsnakes/ppa && \
-    apt-get update && \
+    for attempt in 1 2 3 4 5; do \
+      if apt-get update; then break; fi; \
+      if [ "$attempt" -eq 5 ]; then exit 1; fi; \
+      echo "Ubuntu package mirror unavailable; retrying in $((attempt * 10)) seconds..."; \
+      sleep $((attempt * 10)); \
+    done && \
     apt-get install -y --no-install-recommends \
     python3.11 python3.11-venv python3.11-dev python3.11-distutils \
     ffmpeg libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libcairo2 \
@@ -77,7 +82,12 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     software-properties-common && \
     add-apt-repository ppa:deadsnakes/ppa && \
-    apt-get update && \
+    for attempt in 1 2 3 4 5; do \
+      if apt-get update; then break; fi; \
+      if [ "$attempt" -eq 5 ]; then exit 1; fi; \
+      echo "Ubuntu package mirror unavailable; retrying in $((attempt * 10)) seconds..."; \
+      sleep $((attempt * 10)); \
+    done && \
     apt-get install -y --no-install-recommends \
     python3.11 python3.11-venv python3.11-dev python3.11-distutils \
     ffmpeg libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libcairo2 \
