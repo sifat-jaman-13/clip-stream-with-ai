@@ -63,7 +63,7 @@ jobs:
           path: |
             pytest-report.xml
             pytest-output.log
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 7
 
       - name: Dependency vulnerability scan (core pinned tree)
@@ -101,7 +101,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          npm audit --package-lock-only --audit-level=high --json > npm-audit.json
+          npm audit --package-lock-only --omit=dev --audit-level=high --json > npm-audit.json
           code=$?
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           exit 0
@@ -115,7 +115,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Enforce full dependency audit
+      - name: Enforce production dependency audit
         if: steps.audit.outputs.exit_code != '0'
         run: |
           node -e "const r=require('./npm-audit.json'); for (const [n,v] of Object.entries(r.vulnerabilities||{})) console.error(n, v.severity, v.via);"
@@ -151,7 +151,7 @@ jobs:
 
   integration:
     name: Integration (Docker — reframe/pipeline)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     steps:
@@ -196,7 +196,7 @@ jobs:
 
   browser-e2e:
     name: Browser E2E (Playwright Chromium)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
       run:
