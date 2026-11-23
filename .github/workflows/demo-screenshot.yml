@@ -89,16 +89,16 @@ jobs:
         if: always()
         run: docker compose down --remove-orphans
 
-      - name: Commit the genuine application screenshot
+      - name: Commit or refresh the genuine application screenshot
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main
-          if git ls-tree -r --name-only origin/main docs/assets/clippyme-dashboard.png | grep -Fxq "docs/assets/clippyme-dashboard.png"; then
-            echo "A genuine dashboard screenshot is already committed; no duplicate commit is needed."
+          git add docs/assets/clippyme-dashboard.png
+          if git diff --cached --quiet; then
+            echo "The captured dashboard screenshot is unchanged; no commit is needed."
           else
-            git add docs/assets/clippyme-dashboard.png
-            git commit -m "Add screenshot of the running ClippyMe dashboard"
-            git pull --rebase origin main
-            git push
+            git commit -m "Refresh screenshot of the running ClippyMe dashboard"
+            git rebase origin/main
+            git push origin HEAD:main
           fi
