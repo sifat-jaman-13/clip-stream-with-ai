@@ -40,7 +40,8 @@ def test_twitch_streamlink_live_probe_needs_no_oauth(monkeypatch):
     assert live is True and url is None and started is None
 
 
-def test_twitch_capture_uses_streamlink_and_normalizes_bitrate():
+def test_twitch_capture_uses_streamlink_and_normalizes_bitrate(monkeypatch):
+    monkeypatch.setattr("clippyme.monitoring.live_monitor.shutil.which", lambda name: "/usr/bin/streamlink")
     strategy = TwitchStrategy("xqc")
     args = strategy.capture_args("/tmp/segment.mp4", 600, None)
     assert args[0] == "streamlink"
