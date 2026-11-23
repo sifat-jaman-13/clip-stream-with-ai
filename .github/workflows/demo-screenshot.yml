@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/demo-screenshot.yml"
+      - "Dockerfile"
+      - "docker-compose.yml"
   workflow_dispatch:
 
 permissions:
