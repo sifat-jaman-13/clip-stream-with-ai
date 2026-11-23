@@ -1115,18 +1115,18 @@ class LiveMonitor:
 
         self.state = "capturing"
         url = None
+        captured_any = False
         while not self._stop.is_set():
             state = await self._live_state()
             if state is not None:
                 live, fresh_url, _ = state
                 if fresh_url:
                     url = fresh_url
-                # A live resolver can briefly report offline while the
-                # already-resolved HLS URL is still valid (YouTube's live tab
-                # is eventually consistent and its URLs expire separately).
-                # Never discard a confirmed session before its first capture;
-                # an expired URL naturally ends the session on capture failure.
-                if not live and url is None:
+                # A resolver may briefly report offline before the first
+                # capture even though its confirmed HLS URL is still valid.
+                # Give that URL one capture attempt; after a successful
+                # capture, an offline response ends the live session.
+                if not live and (url is None or captured_any):
                     break
             # state None: the provider didn't answer — no proof the stream
             # ended. Keep capturing on the last known URL; the capture itself
@@ -1134,6 +1134,7 @@ class LiveMonitor:
             seg_path = await self._capture_segment(url)
             if seg_path is None:
                 break
+            captured_any = True
             duration = await asyncio.to_thread(probe_duration, seg_path)
             early_exit = duration < self.cfg["segment_seconds"] - 30
             if not should_process_segment(duration):
