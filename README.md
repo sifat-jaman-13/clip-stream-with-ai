@@ -4,6 +4,7 @@
   <h1>ClippyMe · AI Short-Form Studio</h1>
 
   <p><b>Turn long videos and live streams into publish-ready vertical clips.</b></p>
+  <p><a href="https://sifat-jaman-13.github.io/clip-stream-with-ai/">🌐 Official website & live demo</a></p>
   <p>Self-hosted · Docker-first · YouTube · Twitch · Kick</p>
 
   <p>
@@ -162,8 +163,10 @@ MediaPipe and YOLOv8, and React 18 with Vite and Tailwind for the dashboard.
 
 ## Credits
 
-Maintained by [Sifat Jaman](https://github.com/sifat-jaman-13), with
-implementation assistance from **Codex Luna 6**.
+Created and maintained by [Sifat Jaman](https://github.com/sifat-jaman-13).
+Built with engineering, coding, debugging, and documentation assistance from
+[ChatGPT by OpenAI](https://chatgpt.com/). Product direction, repository
+ownership, and final decisions remain with Sifat Jaman.
 
 ## Acknowledgements
 
