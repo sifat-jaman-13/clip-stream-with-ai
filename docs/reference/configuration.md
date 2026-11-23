@@ -161,7 +161,7 @@ How these interact: [architecture/reframe.md](../architecture/reframe.md).
 
 | Name | Default | Purpose | When to change |
 |------|---------|---------|----------------|
-| `ZERNIO_BASE_URL` | `https://zernio.com/api/v1` | API base; must be `https://*.zernio.com`. | — |
+| `ZERNIO_API_KEY` | unset | Zernio API key used for publishing when no key is supplied in Settings. | Configure publishing access. |\n| `ZERNIO_BASE_URL` | `https://zernio.com/api/v1` | API base; must be `https://*.zernio.com`. | — |
 | `ZERNIO_DEFAULT_TZ` | `Europe/Rome` | Timezone for automatic scheduling. | Audiences outside Italy. |
 | `ZERNIO_MIN_GAP_SECONDS` | `5400` | Minimum gap between posts when a manual publish uses `auto` scheduling (SmartScheduler). Live monitors use their own `min_gap_seconds`. | — |
 | `ZERNIO_HTTP_TIMEOUT` / `ZERNIO_UPLOAD_TIMEOUT` | `60` / `600` | Request and upload timeouts. | Slow uplinks. |
