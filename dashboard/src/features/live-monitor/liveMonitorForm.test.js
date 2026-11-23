@@ -14,11 +14,14 @@ test('validateSlug: kick/twitch required, charset, length', () => {
   assert.equal(validateSlug('has space', 'twitch'), 'Use only lowercase letters, numbers, "_" or "-"');
 });
 
-test('validateSlug: youtube accepts @handle / UC id / channel URL', () => {
+test('validateSlug: youtube accepts channel and direct live-video sources', () => {
   assert.equal(validateSlug('', 'youtube'), 'Channel is required');
   assert.equal(validateSlug('@MrBeast', 'youtube'), null);
   assert.equal(validateSlug('UC' + 'x'.repeat(22), 'youtube'), null);
   assert.equal(validateSlug('https://youtube.com/@MrBeast', 'youtube'), null);
+  assert.equal(validateSlug('sDfXq1QOz9k', 'youtube'), null);
+  assert.equal(validateSlug('https://www.youtube.com/watch?v=sDfXq1QOz9k', 'youtube'), null);
+  assert.equal(validateSlug('https://youtu.be/sDfXq1QOz9k', 'youtube'), null);
   assert.equal(validateSlug('www.youtube.com/channel/UCabc', 'youtube'), null);
   assert.equal(validateSlug('justsometext', 'youtube'), 'Use an @handle, UC… channel id, or a youtube.com channel URL');
   assert.equal(validateSlug('has space', 'youtube'), 'Invalid channel (use an @handle, UC… id, or channel URL)');

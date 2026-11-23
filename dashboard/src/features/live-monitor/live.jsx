@@ -46,7 +46,7 @@ function Group({ title, hint, children }) {
 
 const STATE_LABEL = {
   idle: 'Idle',
-  waiting_live: 'Waiting for the channel to go live',
+  waiting_live: 'Waiting for the stream to go live',
   prelive: 'Prelive — letting the stream settle in',
   capturing: 'Capturing segment',
   draining: 'Draining — finishing the last segment',
@@ -68,7 +68,7 @@ const PLATFORM_LABEL = { kick: 'Kick', twitch: 'Twitch', youtube: 'YouTube' };
 const SLUG_PLACEHOLDER = {
   kick: 'e.g. xqc',
   twitch: 'e.g. xqc',
-  youtube: '@handle or https://youtube.com/@handle',
+  youtube: '@handle, UC… ID, or YouTube live video URL/ID',
 };
 
 // Seconds → minutes for the drawer's minute inputs; '' (blank) when unset so

@@ -11,7 +11,7 @@ platform) and submits ordinary jobs through the same queue as the dashboard.
 |----------|-------------|------------|
 | Kick | Captures the running stream in segments (default 30 min) and processes each segment as a job | Processes each new VOD |
 | Twitch | Streamlink probes and captures the running stream without OAuth; Helix credentials are only needed for VOD/backfill | Processes each new VOD |
-| YouTube | Polls the channel's live tab and captures the active broadcast in segments (starts when detected) | New long-form uploads from the channel's RSS feed (Shorts are excluded by the feed choice), from activation onward |
+| YouTube | Polls a channel's live tab, or checks one supplied video URL/ID directly, and captures the active broadcast in segments | New long-form uploads from a channel's RSS feed (Shorts are excluded by the feed choice), from activation onward |
 
 Several monitors run at once, one per platform + channel. State survives
 restarts in `data/live_monitor.json`; monitors marked `resume_on_start` start

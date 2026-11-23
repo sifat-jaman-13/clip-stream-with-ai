@@ -320,14 +320,14 @@ def _validate_channel(platform: str, raw) -> str:
         if len(ch) > 64 or not _SLUG_RE.match(ch):
             raise ValidationError(f"invalid {platform} channel (use a-z, 0-9, '_' or '-')")
         return ch
-    # youtube: @handle, UC id, or a youtube.com URL. It flows through yt_dlp
-    # resolution / the SSRF-guarded URL submit path, so we only reject the
-    # obviously-hostile (whitespace / control chars / overlong).
+    # YouTube live accepts a channel (@handle / UC id / channel URL) or one
+    # exact video URL/ID. VOD mode still requires a channel to read its uploads.
     if len(ch) > 256 or any(c.isspace() for c in ch):
-        raise ValidationError("invalid youtube channel (@handle, UC id, or channel URL)")
+        raise ValidationError("invalid YouTube source (channel or video URL/ID)")
     if not (_YT_HANDLE_RE.match(ch) or _YT_UC_RE.match(ch)
-            or ch.lower().startswith(("https://", "youtube.com", "www.youtube.com"))):
-        raise ValidationError("youtube channel must be an @handle, UC… id, or channel URL")
+            or re.fullmatch(r"[A-Za-z0-9_-]{11}", ch)
+            or ch.lower().startswith(("https://", "youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be", "www.youtu.be"))):
+        raise ValidationError("YouTube source must be a channel handle/ID or video URL/ID")
     return ch
 
 
@@ -374,6 +374,16 @@ def validate_monitor_config(config: dict, default_timezone: str = "Europe/Rome")
     if mode not in ("live", "vod"):
         raise ValidationError("mode must be 'live' or 'vod'")
     channel = _validate_channel(platform, config.get("channel") or config.get("slug"))
+    if platform == "youtube":
+        from clippyme.integrations.youtube_feed import youtube_video_id
+        try:
+            source_video_id = youtube_video_id(channel)
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from exc
+        if mode == "vod" and source_video_id:
+            raise ValidationError(
+                "YouTube VOD monitoring requires a channel handle/ID/URL, not a video URL"
+            )
 
     platforms = config.get("platforms") or []
     if not isinstance(platforms, list) or not platforms:
@@ -684,13 +694,23 @@ class YoutubeStrategy:
     def __init__(self, channel: str):
         self._input = channel
         self._channel_id = None
+        self._video_id = None
 
     def resolve(self):
-        from clippyme.integrations.youtube_feed import resolve_channel_id
+        from clippyme.integrations.youtube_feed import resolve_channel_id, youtube_video_id
+        self._video_id = youtube_video_id(self._input)
+        if self._video_id:
+            return
         self._channel_id = resolve_channel_id(self._input)
 
     def get_live_state(self):
-        from clippyme.integrations.youtube_feed import resolve_channel_id, resolve_live_stream
+        from clippyme.integrations.youtube_feed import (
+            resolve_channel_id, resolve_live_stream, resolve_live_video, youtube_video_id,
+        )
+        if self._video_id is None and self._channel_id is None:
+            self._video_id = youtube_video_id(self._input)
+        if self._video_id:
+            return resolve_live_video(self._video_id)
         if self._channel_id is None:
             self._channel_id = resolve_channel_id(self._input)
         return resolve_live_stream(self._channel_id)
@@ -702,6 +722,8 @@ class YoutubeStrategy:
                 "-i", url, "-c", "copy", "-t", str(seconds), "-y", seg_path]
 
     def fetch_vods(self):
+        if self._video_id:
+            raise ValueError("YouTube VOD monitoring requires a channel URL or handle")
         from clippyme.integrations.youtube_feed import (
             fetch_feed, feed_url, parse_feed, uploads_playlist_id,
         )

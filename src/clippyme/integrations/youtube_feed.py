@@ -153,6 +153,68 @@ def live_page_url(channel_id: str) -> str:
     return f"https://www.youtube.com/channel/{cid}/live"
 
 
+def youtube_video_id(source: str) -> str | None:
+    """Extract a canonical video ID from a YouTube URL or bare ID.
+
+    Channel handles/URLs return None and continue through resolve_channel_id.
+    Only official HTTPS YouTube hosts are accepted for video URLs.
+    """
+    raw = str(source or "").strip()
+    if not raw:
+        return None
+    if _VIDEO_ID_RE.fullmatch(raw):
+        return raw
+
+    lowered = raw.lower()
+    if lowered.startswith("http://"):
+        raise ValueError("YouTube video URLs must use HTTPS")
+    if lowered.startswith((
+        "youtube.com/", "www.youtube.com/", "m.youtube.com/",
+        "youtu.be/", "www.youtu.be/",
+    )):
+        url = f"https://{raw}"
+    elif lowered.startswith("https://"):
+        url = raw
+    else:
+        return None
+
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    if host not in {"youtube.com", "www.youtube.com", "m.youtube.com",
+                    "youtu.be", "www.youtu.be"}:
+        return None
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError("invalid YouTube video URL port") from exc
+    if (parsed.scheme != "https" or parsed.username is not None
+            or parsed.password is not None or port not in (None, 443)):
+        raise ValueError("YouTube video URLs must use an official HTTPS host")
+
+    path = parsed.path.rstrip("/")
+    video_id = None
+    if host in {"youtu.be", "www.youtu.be"}:
+        parts = path.strip("/").split("/")
+        if len(parts) != 1:
+            raise ValueError("invalid YouTube short video URL")
+        video_id = parts[0]
+    elif path == "/watch":
+        values = parse_qs(parsed.query, keep_blank_values=True).get("v", [])
+        if len(values) != 1:
+            raise ValueError("YouTube watch URL must contain exactly one video ID")
+        video_id = values[0]
+    else:
+        match = re.fullmatch(r"/(?:live|embed|shorts|v)/([^/]+)", path)
+        if match:
+            video_id = match.group(1)
+
+    if video_id is None:
+        return None
+    if not _VIDEO_ID_RE.fullmatch(video_id):
+        raise ValueError("invalid YouTube video ID")
+    return video_id
+
+
 def _live_start(info: dict):
     """Read the best available UTC start time from yt-dlp metadata."""
     from datetime import datetime, timezone
@@ -220,6 +282,42 @@ def resolve_live_stream(channel_id: str):
                     f"https://www.youtube.com/watch?v={live_entry['id']}",
                     download=False,
                 ) or {}
+
+    if not info.get("is_live") and info.get("live_status") != "is_live":
+        return False, None, None
+    media_url = _live_media_url(info)
+    if not media_url:
+        raise RuntimeError("YouTube live broadcast has no playable media URL")
+    return True, media_url, _live_start(info)
+
+
+def resolve_live_video(video_id: str):
+    """Return live state and a fresh HLS URL for one exact video ID.
+
+    This is used when a creator supplies a watch/live URL instead of a channel
+    URL. Scheduled and ended videos stay offline; an active broadcast returns
+    a playable media URL.
+    """
+    vid = str(video_id or "").strip()
+    if not _VIDEO_ID_RE.fullmatch(vid):
+        raise ValueError("invalid YouTube video ID")
+
+    from yt_dlp import YoutubeDL
+
+    options = {
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+        "noplaylist": True,
+        "socket_timeout": LIVE_PAGE_TIMEOUT,
+        "retries": 1,
+        "extractor_retries": 1,
+        "cachedir": False,
+    }
+    with YoutubeDL(options) as ydl:
+        info = ydl.extract_info(
+            f"https://www.youtube.com/watch?v={vid}", download=False,
+        ) or {}
 
     if not info.get("is_live") and info.get("live_status") != "is_live":
         return False, None, None

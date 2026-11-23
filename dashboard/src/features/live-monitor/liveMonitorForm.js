@@ -5,6 +5,7 @@
 const SLUG_RE = /^[a-z0-9_-]+$/; // kick / twitch login
 const YT_HANDLE_RE = /^@[A-Za-z0-9._-]{1,64}$/;
 const YT_UC_RE = /^UC[A-Za-z0-9_-]{20,40}$/;
+const YT_VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
 
 export function validateSlug(slug, platform = 'kick') {
   const raw = (slug || '').trim();
@@ -13,9 +14,9 @@ export function validateSlug(slug, platform = 'kick') {
     const s = raw;
     if (s.length > 256 || /\s/.test(s)) return 'Invalid channel (use an @handle, UC… id, or channel URL)';
     const lower = s.toLowerCase();
-    const looksLikeUrl = lower.startsWith('http://') || lower.startsWith('https://')
-      || lower.startsWith('youtube.com') || lower.startsWith('www.youtube.com');
-    if (!(YT_HANDLE_RE.test(s) || YT_UC_RE.test(s) || looksLikeUrl)) {
+    const looksLikeUrl = /^(?:https:\/\/)?(?:www\.|m\.)?youtube\.com\//.test(lower)
+      || /^(?:https:\/\/)?(?:www\.)?youtu\.be\//.test(lower);
+    if (!(YT_HANDLE_RE.test(s) || YT_UC_RE.test(s) || YT_VIDEO_ID_RE.test(s) || looksLikeUrl)) {
       return 'Use an @handle, UC… channel id, or a youtube.com channel URL';
     }
     return null;
