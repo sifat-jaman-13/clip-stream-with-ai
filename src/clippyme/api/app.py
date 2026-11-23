@@ -318,6 +318,23 @@ async def root():
 async def health():
     return {"status": "healthy"}
 
+
+async def _resolve_gemini_api_key(request: Request) -> Optional[str]:
+    """Prefer an explicit client override, then fall back to the locally saved key.
+
+    The settings API stores provider credentials on the backend. A browser may
+    intentionally keep no credential copy (session-only mode), so job creation
+    must not require the browser to resend a key that the backend already owns.
+    """
+    header_key = (request.headers.get("X-Gemini-Key") or "").strip()
+    if header_key:
+        return header_key
+
+    config = await asyncio.to_thread(load_persistent_config)
+    saved_key = (config or {}).get("GEMINI_API_KEY")
+    return saved_key.strip() if isinstance(saved_key, str) and saved_key.strip() else None
+
+
 @app.post("/api/process")
 async def process_endpoint(
     request: Request,
@@ -329,9 +346,12 @@ async def process_endpoint(
     require_trusted_config_request(request)
     # ~20 single-job submissions/min per client; compute-heavy, so throttle.
     enforce_rate_limit(request, "process", capacity=20, refill_per_sec=20 / 60)
-    api_key = request.headers.get("X-Gemini-Key")
+    api_key = await _resolve_gemini_api_key(request)
     if not api_key:
-        raise HTTPException(status_code=400, detail="Missing X-Gemini-Key header")
+        raise HTTPException(
+            status_code=400,
+            detail="Gemini API key not configured. Add it in Settings.",
+        )
 
     # Handle JSON body via ProcessRequest for URL payloads. Pydantic
     # enforces the reframe_mode regex and the instructions length cap
@@ -482,9 +502,12 @@ async def batch_process(req: BatchRequest, request: Request):
     require_trusted_config_request(request)
     # Each batch can enqueue up to 20 jobs, so limit batch calls more tightly.
     enforce_rate_limit(request, "batch", capacity=10, refill_per_sec=10 / 60)
-    api_key = request.headers.get("X-Gemini-Key")
+    api_key = await _resolve_gemini_api_key(request)
     if not api_key:
-        raise HTTPException(status_code=400, detail="Missing X-Gemini-Key header")
+        raise HTTPException(
+            status_code=400,
+            detail="Gemini API key not configured. Add it in Settings.",
+        )
 
     batch_jobs = []
 
