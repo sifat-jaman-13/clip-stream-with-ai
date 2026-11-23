@@ -9,7 +9,7 @@
 
   <p>
     <a href="https://github.com/sifat-jaman-13/clippyme/actions/workflows/ci.yml"><img src="https://github.com/sifat-jaman-13/clippyme/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
-    <img src="https://img.shields.io/github/license/sifat-jaman-13/clippyme?color=3b82f6" alt="MIT license" />
+    <img src="https://img.shields.io/github/license/sifat-jaman-13/clippyme?color=3b82f6" alt="GPL-3.0-only license" />
     <img src="https://img.shields.io/badge/python-3.11-3776AB?logo=python&logoColor=white" alt="Python 3.11" />
     <img src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white" alt="Docker ready" />
   </p>
@@ -191,4 +191,4 @@ splitting) and several reframing projects — are credited in
 
 ## License
 
-[MIT](LICENSE)
+[GNU GPL v3.0 only](LICENSE)
