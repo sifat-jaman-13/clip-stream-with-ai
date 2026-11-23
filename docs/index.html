@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090b12">
+  <meta name="description" content="ClippyMe turns long videos and live streams into publish-ready vertical clips. Self-hosted, Docker-first, and built for creators.">
+  <title>ClippyMe — AI Short-Form Studio</title>
+  <link rel="icon" href="https://raw.githubusercontent.com/sifat-jaman-13/clippyme/main/dashboard/public/logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{color-scheme:dark;--bg:#090b12;--panel:#111521;--muted:#9aa4b8;--text:#f5f7fb;--line:rgba(255,255,255,.1);--a:#8b7cff;--b:#39d8c5;--pink:#f078b5}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(ellipse at 78% 8%,rgba(89,75,190,.2),transparent 34%),radial-gradient(ellipse at 10% 38%,rgba(30,178,164,.1),transparent 30%),var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;line-height:1.6}a{color:inherit;text-decoration:none}.wrap{width:min(1120px,calc(100% - 40px));margin:auto}
+    .nav{height:78px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}.brand{display:flex;align-items:center;gap:11px;font:700 21px "Space Grotesk"}.brand img{width:37px;height:37px}.navlinks{display:flex;gap:27px;color:#b9c1d0;font-size:14px}.navlinks a:hover{color:white}.navright{display:flex;gap:10px;align-items:center}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:12px 18px;border-radius:12px;font-weight:700;font-size:14px;border:1px solid var(--line);transition:.2s}.btn:hover{transform:translateY(-2px);border-color:#7770d8}.primary{background:linear-gradient(110deg,#8174ff,#5c9df5);border:0;color:white;box-shadow:0 10px 35px rgba(112,103,255,.22)}.quiet{background:rgba(255,255,255,.04)}
+    .hero{padding:92px 0 76px;display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}.eyebrow{display:inline-flex;gap:9px;align-items:center;padding:7px 12px;border:1px solid rgba(139,124,255,.35);border-radius:99px;background:rgba(139,124,255,.09);color:#c8c1ff;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.dot{width:7px;height:7px;border-radius:50%;background:var(--b);box-shadow:0 0 12px var(--b)}h1,h2,h3{font-family:"Space Grotesk";line-height:1.12;letter-spacing:-.035em}h1{font-size:clamp(43px,6vw,70px);margin:23px 0 20px}h1 span{background:linear-gradient(100deg,#a99fff,#62e4d3 75%);background-clip:text;color:transparent}.lead{font-size:18px;color:#aeb8ca;max-width:560px}.actions{display:flex;gap:12px;flex-wrap:wrap;margin:30px 0 25px}.micro{font-size:12px;color:#818da3}.micro b{color:#cbd3e2}
+    .preview{position:relative;border:1px solid rgba(255,255,255,.14);border-radius:22px;background:linear-gradient(145deg,rgba(29,35,54,.96),rgba(13,17,27,.96));padding:14px;box-shadow:0 35px 100px rgba(0,0,0,.45);transform:perspective(1000px) rotateY(-5deg) rotateX(2deg)}.windowbar{height:28px;display:flex;align-items:center;gap:6px;padding:0 6px 10px;border-bottom:1px solid var(--line)}.windowbar i{width:7px;height:7px;border-radius:50%;background:#68728a}.windowbar span{margin-left:auto;color:#7f8ba1;font-size:10px}.dash{display:grid;grid-template-columns:42px 1fr;gap:12px;padding-top:13px;min-height:330px}.rail{border-right:1px solid var(--line);display:flex;flex-direction:column;gap:15px;align-items:center;color:#748098;padding-top:10px}.rail b{color:#a89dff}.workspace{min-width:0}.dashhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:13px}.dashhead strong{font:600 14px "Space Grotesk"}.pill{font-size:9px;color:#71e4d1;background:rgba(57,216,197,.1);padding:4px 8px;border-radius:20px}.video{height:155px;border-radius:12px;overflow:hidden;position:relative;background:linear-gradient(145deg,#2d3450,#171b2b 55%,#49305b);display:flex;align-items:center;justify-content:center}.video:before{content:"";position:absolute;width:120px;height:120px;border-radius:50%;background:linear-gradient(130deg,#e6a6bb,#705eae);filter:blur(1px);opacity:.8;top:15px;left:calc(50% - 60px)}.video:after{content:"";position:absolute;width:90px;height:100px;border-radius:45% 45% 18% 18%;background:#171b2a;top:84px;left:calc(50% - 45px)}.play{z-index:2;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.9);color:#171b2a;display:grid;place-items:center;font-size:14px;padding-left:2px}.videocap{position:absolute;z-index:3;bottom:10px;background:#111827d9;padding:5px 9px;border-radius:5px;font-size:10px;font-weight:700}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:11px}.clip{background:#1a2030;border:1px solid var(--line);border-radius:8px;padding:7px}.thumb{height:52px;border-radius:5px;background:linear-gradient(140deg,#635b9d,#242c42 60%,#2f817e)}.clip:nth-child(2) .thumb{background:linear-gradient(140deg,#8b4d78,#29253e 60%,#b07c5b)}.clip:nth-child(3) .thumb{background:linear-gradient(140deg,#286e75,#252b46 60%,#8c6ab3)}.clip small{display:block;color:#c8d0df;font-size:9px;margin-top:6px}.clip em{font-style:normal;color:#7c8ba5;font-size:8px}
+    .trust{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:23px 0}.trustrow{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;color:#8995aa;font-size:13px}.trustrow strong{font:600 14px "Space Grotesk";color:#dce2ed}.trustitems{display:flex;gap:25px;flex-wrap:wrap}.trustitems span{color:#c0c8d6}
+    section{padding:86px 0}.sectionhead{text-align:center;max-width:680px;margin:0 auto 42px}.kicker{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9b91ff;font-weight:700}.sectionhead h2{font-size:clamp(32px,4vw,45px);margin:12px 0}.sectionhead p{color:var(--muted);font-size:16px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}.feature{padding:25px;border:1px solid var(--line);border-radius:17px;background:linear-gradient(145deg,rgba(24,30,46,.88),rgba(15,19,29,.75));min-height:190px}.ico{width:39px;height:39px;border-radius:11px;display:grid;place-items:center;background:rgba(139,124,255,.13);color:#b6adff;font-size:19px}.feature:nth-child(3n+2) .ico{background:rgba(57,216,197,.1);color:#6ce5d5}.feature h3{font-size:18px;margin:18px 0 8px}.feature p{font-size:14px;color:#9da9bc;margin:0}
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:55px;align-items:center}.split h2{font-size:clamp(32px,4vw,46px);margin:13px 0}.split p{color:var(--muted)}.steps{display:grid;gap:12px;margin-top:25px}.step{display:flex;gap:13px;align-items:flex-start;padding:13px 0;border-bottom:1px solid var(--line)}.num{flex:0 0 27px;height:27px;border-radius:8px;background:rgba(139,124,255,.16);display:grid;place-items:center;color:#b8adff;font-size:12px;font-weight:700}.step strong{display:block;font-size:14px}.step small{color:#8995aa}.terminal{border:1px solid rgba(255,255,255,.14);border-radius:17px;overflow:hidden;background:#0d111b;box-shadow:0 25px 70px #0006}.termhead{padding:13px 17px;border-bottom:1px solid var(--line);color:#9ba7ba;font-size:12px}.terminal pre{padding:22px;margin:0;white-space:pre-wrap;color:#d2d9e6;font:13px/2 ui-monospace,monospace}.terminal .muted{color:#75829a}.terminal .green{color:#65ddc8}.callout{padding:27px;border-radius:18px;border:1px solid rgba(139,124,255,.22);background:linear-gradient(110deg,rgba(111,97,222,.15),rgba(40,169,157,.08));display:flex;align-items:center;justify-content:space-between;gap:25px}.callout h3{font-size:23px;margin:0 0 6px}.callout p{margin:0;color:#aab5c8;font-size:14px}.faq{max-width:780px;margin:auto;display:grid;gap:10px}.faq details{border:1px solid var(--line);border-radius:12px;background:#111521;padding:17px 19px}.faq summary{font-weight:700;cursor:pointer}.faq details p{color:#9da9bc;font-size:14px;margin-bottom:0}
+    footer{padding:28px 0 38px;border-top:1px solid var(--line);color:#77849a;font-size:12px}.foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}.foot a{color:#b7c0d0}
+    @media(max-width:850px){.hero{grid-template-columns:1fr;padding-top:65px}.preview{max-width:620px;transform:none;margin:auto}.grid{grid-template-columns:repeat(2,1fr)}.split{grid-template-columns:1fr;gap:30px}.navlinks{display:none}}
+    @media(max-width:560px){.wrap{width:min(100% - 28px,1120px)}.nav{height:66px}.navright .quiet{display:none}.hero{padding:54px 0}.lead{font-size:16px}.grid{grid-template-columns:1fr}.trustrow{justify-content:center;text-align:center}.trustitems{justify-content:center}.callout{align-items:flex-start;flex-direction:column}.dash{min-height:280px}.video{height:130px}.cards{gap:5px}.clip{padding:5px}}
+  </style>
+</head>
+<body>
+<header class="wrap nav">
+  <a class="brand" href="#"><img src="https://raw.githubusercontent.com/sifat-jaman-13/clippyme/main/dashboard/public/logo.svg" alt="">ClippyMe</a>
+  <nav class="navlinks" aria-label="Main navigation"><a href="#features">Features</a><a href="#workflow">How it works</a><a href="#setup">Quick start</a><a href="https://github.com/sifat-jaman-13/clippyme/tree/main/docs">Docs</a></nav>
+  <div class="navright"><a class="btn quiet" href="https://github.com/sifat-jaman-13/clippyme">View source ↗</a><a class="btn primary" href="#setup">Get started <span>→</span></a></div>
+</header>
+<main>
+  <div class="wrap hero">
+    <div>
+      <div class="eyebrow"><i class="dot"></i> Open-source · Self-hosted</div>
+      <h1>Long videos in.<br><span>Great clips out.</span></h1>
+      <p class="lead">Meet your AI short-form studio. ClippyMe finds the moments worth sharing, reframes them for vertical video, adds captions, and gets your clips ready to publish.</p>
+      <div class="actions"><a class="btn primary" href="#setup">Launch your studio <span>→</span></a><a class="btn quiet" href="https://github.com/sifat-jaman-13/clippyme">Explore on GitHub ↗</a></div>
+      <div class="micro"><b>Docker-first</b> &nbsp;·&nbsp; YouTube, Twitch & Kick &nbsp;·&nbsp; MIT License</div>
+    </div>
+    <div class="preview" aria-label="Illustrative ClippyMe dashboard preview">
+      <div class="windowbar"><i></i><i></i><i></i><span>CLIPPYME / STUDIO</span></div>
+      <div class="dash"><aside class="rail"><b>◈</b><span>⌂</span><span>＋</span><span>▤</span><span>⚙</span></aside>
+        <div class="workspace"><div class="dashhead"><strong>Clip workspace</strong><span class="pill">● READY TO EDIT</span></div>
+          <div class="video"><div class="play">▶</div><div class="videocap">THIS IS THE MOMENT EVERYONE MISSED</div></div>
+          <div class="cards"><div class="clip"><div class="thumb"></div><small>Unexpected twist</small><em>00:24 · 9:16</em></div><div class="clip"><div class="thumb"></div><small>Best reaction</small><em>01:08 · 9:16</em></div><div class="clip"><div class="thumb"></div><small>Big reveal</small><em>02:16 · 9:16</em></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="trust"><div class="wrap trustrow"><strong>One workspace. Your content pipeline.</strong><div class="trustitems"><span>YouTube</span><span>Twitch</span><span>Kick</span><span>9:16 clips</span><span>Docker-ready</span></div></div></div>
+  <section id="features"><div class="wrap"><div class="sectionhead"><div class="kicker">Made for the whole workflow</div><h2>From raw footage to ready-to-post.</h2><p>Spend less time scrubbing timelines. Keep creative control over the clips you publish.</p></div>
+    <div class="grid">
+      <article class="feature"><div class="ico">✦</div><h3>AI moment discovery</h3><p>Transcribe your footage and use Gemini to identify, rank, and title self-contained moments worth clipping.</p></article>
+      <article class="feature"><div class="ico">▣</div><h3>Smart vertical framing</h3><p>Active-speaker tracking keeps the person talking in frame, with options for subject-centred or full-frame layouts.</p></article>
+      <article class="feature"><div class="ico">Aa</div><h3>Captions that fit</h3><p>Choose from animated caption styles and refine the transcript, hook text, logo, and attribution before export.</p></article>
+      <article class="feature"><div class="ico">✂</div><h3>Fine-grained editing</h3><p>Adjust clip edges, remove silence and filler words, apply colour grading, and preview the result before publishing.</p></article>
+      <article class="feature"><div class="ico">◷</div><h3>Live stream monitor</h3><p>Watch YouTube, Twitch, and Kick sources, capture segments, and send them through the same clipping pipeline.</p></article>
+      <article class="feature"><div class="ico">↗</div><h3>Publishing & scheduling</h3><p>Connect supported social destinations through Zernio and schedule posts while respecting provider quotas and platform rules.</p></article>
+      <article class="feature"><div class="ico">⌘</div><h3>Local-first control</h3><p>Run on your own hardware. Clips, settings, and keys stay in local folders under your control.</p></article>
+      <article class="feature"><div class="ico">▤</div><h3>Useful diagnostics</h3><p>Follow detection, capture, processing, publishing, and error events in the dashboard Logs tab.</p></article>
+      <article class="feature"><div class="ico">⚡</div><h3>Built to keep going</h3><p>Long-running jobs survive restarts and resume, so unattended workflows can keep moving.</p></article>
+    </div>
+  </div></section>
+  <section id="workflow"><div class="wrap split">
+    <div><div class="kicker">A simpler pipeline</div><h2>Your best moments, without the endless timeline hunt.</h2><p>Start with a video link or upload, or let Live Monitor watch a channel. ClippyMe handles the heavy lifting and leaves the final creative decisions in your hands.</p>
+      <div class="steps"><div class="step"><span class="num">01</span><div><strong>Bring in a video or stream</strong><small>Paste a YouTube link, upload a file, or configure a live source.</small></div></div><div class="step"><span class="num">02</span><div><strong>Find and shape moments</strong><small>Transcribe, discover clips, reframe to 9:16, and add captions.</small></div></div><div class="step"><span class="num">03</span><div><strong>Review, export, or publish</strong><small>Edit the details, preview the result, then download or schedule.</small></div></div></div>
+    </div>
+    <div class="terminal"><div class="termhead">⌁ &nbsp; Start ClippyMe locally</div><pre><span class="muted"># Clone the repository</span>
+<span class="green">git clone</span> https://github.com/sifat-jaman-13/clippyme.git
+<span class="green">cd</span> clippyme
+
+<span class="muted"># Configure your environment</span>
+copy .env.example .env
+
+<span class="muted"># Build and start the app</span>
+<span class="green">docker compose up -d --build</span>
+
+<span class="muted"># Open the dashboard</span>
+http://localhost:3000</pre></div>
+  </div></section>
+  <section id="setup"><div class="wrap"><div class="sectionhead"><div class="kicker">Ready when you are</div><h2>Run your own clipping studio.</h2><p>Docker Desktop with Compose v2 is the starting point. Add only the integrations you plan to use.</p></div>
+    <div class="callout"><div><h3>Get ClippyMe on GitHub</h3><p>Read the setup guide, check requirements, and start building your own workflow.</p></div><div class="actions" style="margin:0"><a class="btn primary" href="https://github.com/sifat-jaman-13/clippyme">View repository ↗</a><a class="btn quiet" href="https://github.com/sifat-jaman-13/clippyme/blob/main/docs/getting-started.md">Read the guide</a></div></div>
+    <div class="faq" style="margin-top:35px"><details><summary>Do I need API keys?</summary><p>Gemini is recommended for selecting and ranking moments. Deepgram or ElevenLabs can provide cloud transcription; local Whisper is available as a fallback. Zernio is optional for publishing and scheduling.</p></details><details><summary>Does ClippyMe host my videos?</summary><p>ClippyMe is designed to run on your hardware. Clips, settings, and keys stay in local folders. Review the security and deployment documentation before exposing any service beyond localhost.</p></details><details><summary>Can it automatically clip live streams?</summary><p>Yes. Live Monitor supports YouTube, Twitch, and Kick capture workflows. Available capabilities differ by source and mode; see the repository documentation for setup details.</p></details><details><summary>Is publishing included?</summary><p>Publishing and scheduling are integrated through Zernio. Provider subscriptions, API quotas, and social-platform limits still apply and are not bypassed by ClippyMe.</p></details></div>
+  </div></section>
+</main>
+<footer><div class="wrap foot"><span>© <span id="year"></span> ClippyMe · Built for creators who want control.</span><span><a href="https://github.com/sifat-jaman-13/clippyme">GitHub</a> &nbsp;·&nbsp; <a href="https://github.com/sifat-jaman-13/clippyme/blob/main/LICENSE">MIT License</a> &nbsp;·&nbsp; Maintained by Sifat Jaman</span></div></footer>
+<script>document.getElementById('year').textContent=new Date().getFullYear();</script>
+</body>
+</html>
