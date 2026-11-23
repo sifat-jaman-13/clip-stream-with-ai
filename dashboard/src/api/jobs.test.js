@@ -1,9 +1,17 @@
 // throwFromResponse: the error message a caller shows and the `retryable`
 // flag its poller/retry logic branches on (a permanent 4xx must stop polling).
-import { test } from 'vitest';
+import { beforeEach, test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 
-import { throwFromResponse } from './jobs.js';
+vi.mock('./apiToken', () => ({ apiFetch: vi.fn() }));
+
+import { apiFetch } from './apiToken';
+import { submitBatchJob, submitProcessJob, throwFromResponse } from './jobs.js';
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  apiFetch.mockResolvedValue({ ok: true, json: async () => ({ job_id: 'job-1', jobs: [], total: 0 }) });
+});
 
 const response = (status, body) => ({ status, text: async () => body });
 
@@ -15,6 +23,22 @@ async function errorFor(status, body) {
   }
   throw new Error('throwFromResponse did not throw');
 }
+
+test('single-job submission omits an empty Gemini header so the backend can use its saved key', async () => {
+  await submitProcessJob({ type: 'url', payload: 'https://example.com/video' }, '');
+
+  const [, options] = apiFetch.mock.calls[0];
+  assert.equal(options.headers['X-Gemini-Key'], undefined);
+  assert.equal(options.headers['Content-Type'], 'application/json');
+});
+
+test('batch submission omits an empty Gemini header so the backend can use its saved key', async () => {
+  await submitBatchJob({ urls: ['https://example.com/video'] }, '');
+
+  const [, options] = apiFetch.mock.calls[0];
+  assert.equal(options.headers['X-Gemini-Key'], undefined);
+  assert.equal(options.headers['Content-Type'], 'application/json');
+});
 
 test('retryable only for timeouts, rate limits and server errors', async () => {
   for (const status of [408, 429, 500, 502, 503, 504]) {
