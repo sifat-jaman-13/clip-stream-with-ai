@@ -18,17 +18,17 @@ FROM nvidia/cuda:12.6.3-cudnn-runtime-ubuntu24.04 AS runtime-nvidia
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+RUN apt-get -o Acquire::Retries=5 update && \
+    apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
     software-properties-common && \
     add-apt-repository ppa:deadsnakes/ppa && \
     for attempt in 1 2 3 4 5; do \
-      if apt-get update; then break; fi; \
+      if apt-get -o Acquire::Retries=5 update; then break; fi; \
       if [ "$attempt" -eq 5 ]; then exit 1; fi; \
       echo "Ubuntu package mirror unavailable; retrying in $((attempt * 10)) seconds..."; \
       sleep $((attempt * 10)); \
     done && \
-    apt-get install -y --no-install-recommends \
+    apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
     python3.11 python3.11-venv python3.11-dev python3.11-distutils \
     ffmpeg libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libcairo2 \
     curl unzip ca-certificates gosu && \
@@ -78,17 +78,17 @@ FROM ubuntu:24.04 AS runtime-cpu
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+RUN apt-get -o Acquire::Retries=5 update && \
+    apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
     software-properties-common && \
     add-apt-repository ppa:deadsnakes/ppa && \
     for attempt in 1 2 3 4 5; do \
-      if apt-get update; then break; fi; \
+      if apt-get -o Acquire::Retries=5 update; then break; fi; \
       if [ "$attempt" -eq 5 ]; then exit 1; fi; \
       echo "Ubuntu package mirror unavailable; retrying in $((attempt * 10)) seconds..."; \
       sleep $((attempt * 10)); \
     done && \
-    apt-get install -y --no-install-recommends \
+    apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
     python3.11 python3.11-venv python3.11-dev python3.11-distutils \
     ffmpeg libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libcairo2 \
     curl unzip ca-certificates gosu && \
