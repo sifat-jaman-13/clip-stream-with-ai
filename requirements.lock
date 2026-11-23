@@ -264,7 +264,7 @@ scipy==1.17.1
     #   jax
     #   jaxlib
     #   ultralytics
-# torch 2.11.0 requires setuptools<82; CI documents the PYSEC-2026-3447 sdist-only exception.\nsetuptools==81.0.0
+# torch 2.11.0 requires setuptools<82. CI documents two platform-specific legacy setuptools advisories:\nsetuptools==81.0.0
     # via
     #   ctranslate2
     #   torch
