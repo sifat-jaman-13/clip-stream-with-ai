@@ -130,6 +130,12 @@ def test_capture_continues_when_live_state_is_unknown(tmp_path, monkeypatch):
         urls.append(url)
         path = tmp_path / f"seg{len(urls)}.mp4"
         path.write_bytes(b"x")
+        # This test needs exactly two successful captures to prove that an
+        # unanswered provider poll preserves the last known URL. Stop the
+        # scripted loop after capture two instead of letting the fake capture
+        # succeed forever after the strategy reports offline.
+        if len(urls) >= 2:
+            mon._stop.set()
         return str(path)
 
     async def submit(seg_path):
