@@ -367,5 +367,5 @@ test('twitch missing-credentials (400) points to Settings', async () => {
   fireEvent.change(screen.getByLabelText('Channel'), { target: { value: 'xqc' } });
   await waitFor(() => expect(screen.getByRole('button', { name: /Start monitor/ })).not.toBeDisabled());
   fireEvent.click(screen.getByRole('button', { name: /Start monitor/ }));
-  await waitFor(() => expect(pushToast).toHaveBeenCalledWith('error', expect.stringMatching(/Twitch not configured/i)));
+  await waitFor(() => expect(pushToast).toHaveBeenCalledWith('error', expect.stringMatching(/TWITCH_CLIENT_ID\/SECRET in Settings/i)));
 });
