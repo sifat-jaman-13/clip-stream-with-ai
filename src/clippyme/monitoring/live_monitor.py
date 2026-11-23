@@ -1111,13 +1111,13 @@ class LiveMonitor:
         while not self._stop.is_set():
             state = await self._live_state()
             if state is not None and state[0]:
-                await self._marathon(state[2])
+                await self._marathon(state[2], state[1])
                 if not self.cfg["loop"]:
                     break
             self.state = "waiting_live"
             await self._interruptible_sleep(self._next_poll_delay())
 
-    async def _marathon(self, started_at=None) -> None:
+    async def _marathon(self, started_at=None, initial_url=None) -> None:
         """Handle one live session: prelive skip, then the capture loop.
 
         ``started_at`` is the stream's own start time (from the
@@ -1136,7 +1136,10 @@ class LiveMonitor:
             return  # stream ended (or stop requested) during prelive
 
         self.state = "capturing"
-        url = None
+        # Preserve the URL from the successful detection check. The immediate
+        # recheck below can fail transiently; in that case keep using this
+        # confirmed URL until a fresh one is available or capture ends.
+        url = initial_url
         captured_any = False
         while not self._stop.is_set():
             state = await self._live_state()
