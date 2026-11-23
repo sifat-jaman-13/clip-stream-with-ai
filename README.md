@@ -191,4 +191,6 @@ splitting) and several reframing projects — are credited in
 
 ## License
 
-[GNU GPL v3.0 only](LICENSE)
+[GNU GPL v3.0 only](LICENSE) (GPL-3.0-only).
+
+This repository is a derivative of [fralapo/clippyme](https://github.com/fralapo/clippyme). The upstream MIT license and its original notices are preserved in [LICENSES/UPSTREAM-CLIPPYME-MIT.txt](LICENSES/UPSTREAM-CLIPPYME-MIT.txt); upstream-originated material remains subject to those original terms.
