@@ -73,7 +73,8 @@ def test_vfr_normalization_command_uses_shared_encode_policy(monkeypatch):
         "ffmpeg", "-y", "-i", "input.mp4",
         "-vsync", "cfr",
         "-c:v", "libx264", "-preset", "slow", "-crf", "17",
-        "-pix_fmt", "yuv420p",
+        "-b:v", "8000k", "-minrate", "8000k", "-maxrate", "8000k",
+        "-bufsize", "16000k", "-pix_fmt", "yuv420p",
         "-c:a", "copy", "normalized.mp4",
     ]
 
