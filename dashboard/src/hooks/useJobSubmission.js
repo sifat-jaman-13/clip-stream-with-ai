@@ -13,6 +13,20 @@ function withTaste(data) {
   return { ...data, instructions: base ? `${base} ${hint}` : hint };
 }
 
+function showMissingGeminiKeyModal(error, { setStatus, setLogs, setProcessingMedia, setShowKeyModal }) {
+  const message = String(error?.message || error || '');
+  if (!/(?:gemini api key not configured|missing x-gemini-key header)/i.test(message)) {
+    return false;
+  }
+  // Only show setup when the backend confirms that neither the request nor
+  // its own local configuration contains a Gemini key.
+  setStatus('idle');
+  setLogs([]);
+  setProcessingMedia(null);
+  setShowKeyModal?.(true);
+  return true;
+}
+
 /**
  * Custom hook factory that returns process/batch submission handlers.
  * Receives the state setters from App.jsx so handlers stay declarative.
@@ -43,10 +57,8 @@ export function useJobSubmission({
   );
 
   const handleProcess = async (data) => {
-    if (!apiKey) {
-      setShowKeyModal(true);
-      return;
-    }
+    // The backend owns the persisted provider key. The browser copy is only
+    // an optional override, so an empty browser credential must not block a job.
     setStatus('processing');
     setLogs(['Initializing engine...']);
     setResults(null);
@@ -57,16 +69,13 @@ export function useJobSubmission({
       const resData = await submitProcessJob(withTaste(data), apiKey);
       setJobId(resData.job_id);
     } catch (e) {
+      if (showMissingGeminiKeyModal(e, { setStatus, setLogs, setProcessingMedia, setShowKeyModal })) return;
       setStatus('error');
       setLogs((l) => [...l, `Error: ${e.message}`]);
     }
   };
 
   const handleBatchProcess = async (data) => {
-    if (!apiKey) {
-      setShowKeyModal(true);
-      return;
-    }
     setStatus('processing');
     setLogs(['Launching batch processing...']);
     setResults(null);
@@ -100,6 +109,7 @@ export function useJobSubmission({
           allJobIds.push(fileRes.job_id);
           setLogs((l) => [...l, `Submitted file: ${f.name}`]);
         } catch (e) {
+          if (showMissingGeminiKeyModal(e, { setStatus, setLogs, setProcessingMedia, setShowKeyModal })) return;
           setLogs((l) => [...l, `Failed to submit ${f.name}: ${e.message}`]);
         }
       }
@@ -248,6 +258,7 @@ export function useJobSubmission({
       };
       pollRef.current = setTimeout(tick, POLL_MS);
     } catch (e) {
+      if (showMissingGeminiKeyModal(e, { setStatus, setLogs, setProcessingMedia, setShowKeyModal })) return;
       setStatus('error');
       setLogs((l) => [...l, `Batch error: ${e.message}`]);
     }
