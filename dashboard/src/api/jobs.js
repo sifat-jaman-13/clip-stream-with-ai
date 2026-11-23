@@ -30,8 +30,13 @@ function pickLanguage(pre) {
   return lang;
 }
 
+function geminiKeyHeader(apiKey) {
+  const key = typeof apiKey === 'string' ? apiKey.trim() : '';
+  return key ? { 'X-Gemini-Key': key } : {};
+}
+
 export async function submitProcessJob(data, apiKey, { signal } = {}) {
-  const headers = { 'X-Gemini-Key': apiKey };
+  const headers = geminiKeyHeader(apiKey);
   let body;
   const language = pickLanguage(data.preselections);
   const reframeMode = data.preselections?.reframe_mode;
@@ -85,7 +90,7 @@ export async function submitBatchJob(data, apiKey, { signal } = {}) {
   if ((data.preselections?.model || '').trim()) batchBody.model = data.preselections.model.trim();
   const res = await apiFetch(getApiUrl('/api/batch'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Gemini-Key': apiKey },
+    headers: { 'Content-Type': 'application/json', ...geminiKeyHeader(apiKey) },
     body: JSON.stringify(batchBody),
     signal,
   });
