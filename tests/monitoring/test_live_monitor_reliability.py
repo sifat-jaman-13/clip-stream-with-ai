@@ -161,6 +161,9 @@ def test_capture_continues_when_live_state_is_unknown(tmp_path, monkeypatch):
 def test_prelive_wait_survives_unknown_live_state(tmp_path):
     mon = _monitor(tmp_path, prelive_skip_seconds=120)
     mon._strategy = ScriptedStrategy([RuntimeError("HTTP 503"), (True, "u", None)])
+    # A client marks the Helix path; Streamlink-only live detection skips the
+    # prelive wait because it has no stream-start timestamp.
+    mon._strategy._client = object()
 
     async def fast_sleep(seconds):
         return None
