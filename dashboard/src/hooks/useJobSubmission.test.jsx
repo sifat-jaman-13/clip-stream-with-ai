@@ -16,7 +16,7 @@ vi.mock('../api/apiToken', () => ({
   apiFetch: vi.fn(),
 }));
 
-import { submitBatchJob } from '../api/jobs';
+import { submitBatchJob, submitProcessJob } from '../api/jobs';
 import { apiFetch } from '../api/apiToken';
 import { useJobSubmission } from './useJobSubmission';
 
@@ -55,6 +55,30 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.clearAllMocks();
+});
+
+test('empty browser credential still submits the job so the backend can use its saved key', async () => {
+  submitProcessJob.mockResolvedValue({ job_id: 'job-from-saved-key' });
+  const { handlers, props } = mountHook({ apiKey: '' });
+
+  await act(() => handlers.handleProcess({ type: 'url', payload: 'https://example.com/video' }));
+
+  expect(submitProcessJob).toHaveBeenCalledWith(
+    expect.objectContaining({ type: 'url', payload: 'https://example.com/video' }),
+    '',
+  );
+  expect(props.setShowKeyModal).not.toHaveBeenCalled();
+  expect(props.setJobId).toHaveBeenCalledWith('job-from-saved-key');
+});
+
+test('key setup modal is shown only when the backend confirms no key is configured', async () => {
+  submitProcessJob.mockRejectedValue(new Error('Gemini API key not configured. Add it in Settings.'));
+  const { handlers, props } = mountHook({ apiKey: '' });
+
+  await act(() => handlers.handleProcess({ type: 'url', payload: 'https://example.com/video' }));
+
+  expect(props.setShowKeyModal).toHaveBeenCalledWith(true);
+  expect(props.setStatus).toHaveBeenLastCalledWith('idle');
 });
 
 test('all jobs terminal → status complete and onBatchFinished fires once', async () => {
