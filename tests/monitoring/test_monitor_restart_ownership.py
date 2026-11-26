@@ -245,7 +245,8 @@ def test_job_unknown_after_restart_without_proof_of_completion_is_released(tmp_p
 
 class _TwitchLive(ScriptedStrategy):
     def __init__(self, started_at):
-        super().__init__([(True, "u", started_at)])
+        # No playback URL: this suite isolates backfill ownership from live capture.
+        super().__init__([(True, None, started_at)])
 
     def live_vod_url(self):
         return "https://vod.example/1"
