@@ -186,13 +186,13 @@ jobs:
           set -euo pipefail
           docker build -f dashboard/Dockerfile.prod -t clippyme-frontend-prod ./dashboard
           trap 'docker compose -f docker-compose.yml -f docker-compose.prod.yml down --remove-orphans' EXIT
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build --pull never
+          CLIPPYME_FRONTEND_PORT=3000 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build --pull never
           for attempt in $(seq 1 50); do
-            if curl -fsS http://127.0.0.1:5175/api/health | grep -q healthy; then break; fi
+            if curl -fsS http://127.0.0.1:3000/api/health | grep -q healthy; then break; fi
             sleep 2
           done
-          curl -fsS http://127.0.0.1:5175/api/health | grep -q healthy
-          curl -fsS http://127.0.0.1:5175/ | grep -q Content-Security-Policy
+          curl -fsS http://127.0.0.1:3000/api/health | grep -q healthy
+          curl -fsS http://127.0.0.1:3000/ | grep -q Content-Security-Policy
           docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 
   browser-e2e:
